@@ -3,15 +3,23 @@
   <PropertyGroup>
     <AssemblyName>Tests</AssemblyName>
     <RootNamespace>Tests</RootNamespace>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <LangVersion>8</LangVersion>
+    <DisableImplicitPackageTargetFallback>true</DisableImplicitPackageTargetFallback>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="!$([MSBuild]::IsOSUnixLike())">
+    <TargetFrameworks>net452;netcoreapp3.1</TargetFrameworks>
+  </PropertyGroup>
+  <PropertyGroup Condition="$([MSBuild]::IsOSUnixLike())">
+    <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\SilentProcessRunner\SilentProcessRunner.csproj" />
   </ItemGroup>
-  
+
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.7.1" />
     <PackageReference Include="nunit" Version="3.12.0" />
@@ -22,5 +30,11 @@
     <PackageReference Include="FluentAssertions.Extensions" Version="1.0.18" />
   </ItemGroup>
 
+
+  <ItemGroup Condition=" '$(TargetFrameworkIdentifier)' == '.NETFramework' ">
+    <Reference Include="System.DirectoryServices.AccountManagement" />
+    <Reference Include="System.IdentityModel" />
+    <Reference Include="System.ServiceProcess" />
+  </ItemGroup>
 
 </Project>
