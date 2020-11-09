@@ -267,7 +267,7 @@ namespace Octopus.SilentProcessRunner
         {
             try
             {
-                Hitman.TryKillProcessAndChildrenRecursively(process);
+                XPlatAdapter.TryKillProcessAndChildrenRecursively(process);
             }
             catch (Exception hitmanException)
             {
@@ -291,77 +291,6 @@ namespace Octopus.SilentProcessRunner
             int dwFlags,
             out CPINFOEX lpCPInfoEx);
 #pragma warning restore PC003 // Native API not available in UWP
-
-        class Hitman
-        {
-            public static void TryKillProcessAndChildrenRecursively(System.Diagnostics.Process process)
-            {
-                if (PlatformDetection.IsRunningOnNix)
-                    TryKillLinuxProcessAndChildrenRecursively(process);
-                else if (PlatformDetection.IsRunningOnWindows)
-                    TryKillWindowsProcessAndChildrenRecursively(process.Id);
-                else
-                    throw new Exception("Unknown platform, unable to kill process");
-            }
-
-            static void TryKillLinuxProcessAndChildrenRecursively(System.Diagnostics.Process process)
-            {
-                var messages = new List<string>();
-                var result = ExecuteCommand(
-                    "/bin/bash",
-                    $"-c \"kill -TERM {process.Id}\"",
-                    Environment.CurrentDirectory,
-                    m => { },
-                    m => { },
-                    m => messages.Add(m)
-                );
-
-                if (result != 0)
-                    throw new ProcessRunnerException(result, messages);
-
-                //process.Kill() doesnt seem to work in netcore 2.2 there have been some improvments in netcore 3.0 as well as also allowing to kill child processes
-                //https://github.com/dotnet/corefx/pull/34147
-                //In netcore 2.2 if the process is terminated we still get stuck on process.WaitForExit(); we need to manually check to see if the process has exited and then close it.
-                if (process.HasExited)
-                    process.Close();
-            }
-
-            static void TryKillWindowsProcessAndChildrenRecursively(int pid)
-            {
-                try
-                {
-                    using (var searcher = new ManagementObjectSearcher("Select * From Win32_Process Where ParentProcessID=" + pid))
-                    {
-                        using (var moc = searcher.Get())
-                        {
-                            foreach (var mo in moc.OfType<ManagementObject>())
-                                TryKillWindowsProcessAndChildrenRecursively(Convert.ToInt32(mo["ProcessID"]));
-                        }
-                    }
-                }
-                catch (MarshalDirectiveException)
-                {
-                    // This is a known framework bug: https://github.com/dotnet/runtime/issues/28840
-                    //
-                    // The ManagementObjectSearcher netcore3.1 is completely broken. It's possible to crash it just by creating
-                    // a new instance of ManagementScope. Once this framework bug is addressed, we should be able to remove
-                    // this catch block.
-                    //
-                    // Unfortunately, this means that we have no feasible way to recursively kill processes under netcore, so
-                    // we're left with just killing the top-level process and hoping that the others terminate soon.
-                }
-
-                try
-                {
-                    var proc = System.Diagnostics.Process.GetProcessById(pid);
-                    proc.Kill();
-                }
-                catch (ArgumentException)
-                {
-                    // SilentProcessRunner already exited.
-                }
-            }
-        }
 
         internal class EncodingDetector
         {

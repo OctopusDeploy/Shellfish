@@ -8,5 +8,6 @@ namespace Octopus.SilentProcessRunner
     interface IXPlatAdapter
     {
         void RunAsDifferentUser(ProcessStartInfo startInfo, NetworkCredential runAs, IDictionary<string, string>? customEnvironmentVariables);
+        void TryKillProcessAndChildrenRecursively(Process process);
     }
 }
