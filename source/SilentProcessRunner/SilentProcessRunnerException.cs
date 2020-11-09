@@ -4,11 +4,11 @@ using System.Text;
 
 namespace Octopus.SilentProcessRunner
 {
-    public class ProcessRunnerException : Exception
+    public class SilentProcessRunnerException : Exception
     {
         readonly int exitCode;
 
-        internal ProcessRunnerException(int exitCode, List<string> errors)
+        internal SilentProcessRunnerException(int exitCode, List<string> errors)
         {
             this.exitCode = exitCode;
             Errors = errors;

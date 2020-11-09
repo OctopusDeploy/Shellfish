@@ -24,7 +24,7 @@ namespace Octopus.SilentProcessRunner.Nix
             );
 
             if (result != 0)
-                throw new ProcessRunnerException(result, messages);
+                throw new SilentProcessRunnerException(result, messages);
 
             //process.Kill() doesnt seem to work in netcore 2.2 there have been some improvments in netcore 3.0 as well as also allowing to kill child processes
             //https://github.com/dotnet/corefx/pull/34147

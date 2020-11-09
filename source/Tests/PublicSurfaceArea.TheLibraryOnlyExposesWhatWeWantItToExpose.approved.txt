@@ -1,4 +1,4 @@
-Octopus.SilentProcessRunner.ProcessRunnerException.Errors
-Octopus.SilentProcessRunner.ProcessRunnerException.Message
 Octopus.SilentProcessRunner.SilentProcessRunner.ExecuteCommand
 Octopus.SilentProcessRunner.SilentProcessRunner.ExecuteCommandWithoutWaiting
+Octopus.SilentProcessRunner.SilentProcessRunnerException.Errors
+Octopus.SilentProcessRunner.SilentProcessRunnerException.Message

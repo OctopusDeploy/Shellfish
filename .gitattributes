@@ -48,4 +48,6 @@
 
 *.sln text eol=crlf merge=union 
 
-*.approved.* binary
+*.approved.* -text
+
+octo eol=lf

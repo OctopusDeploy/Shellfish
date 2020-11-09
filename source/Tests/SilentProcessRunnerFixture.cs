@@ -7,6 +7,7 @@ using System.Threading;
 using FluentAssertions;
 using NUnit.Framework;
 using Octopus.SilentProcessRunner;
+using Octopus.SilentProcessRunner.Plumbing;
 using Octopus.SilentProcessRunner.Windows;
 using Tests.Plumbing;
 

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace Octopus.SilentProcessRunner
+namespace Octopus.SilentProcessRunner.Plumbing
 {
     static class PlatformDetection
     {

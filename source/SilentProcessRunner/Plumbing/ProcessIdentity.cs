@@ -1,7 +1,7 @@
 using System;
 using System.Security.Principal;
 
-namespace Octopus.SilentProcessRunner
+namespace Octopus.SilentProcessRunner.Plumbing
 {
     static class ProcessIdentity
     {

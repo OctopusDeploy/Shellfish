@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using Octopus.Diagnostics;
 using Octopus.SilentProcessRunner.Nix;
+using Octopus.SilentProcessRunner.Plumbing;
 using Octopus.SilentProcessRunner.Windows;
 
 namespace Octopus.SilentProcessRunner

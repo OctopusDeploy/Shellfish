@@ -3,6 +3,7 @@ using NUnit.Framework;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 using Octopus.SilentProcessRunner;
+using Octopus.SilentProcessRunner.Plumbing;
 
 namespace Tests.Plumbing
 {
