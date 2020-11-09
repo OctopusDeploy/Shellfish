@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
+using System.Text;
 
 namespace Octopus.SilentProcessRunner.Nix
 {
@@ -31,5 +32,8 @@ namespace Octopus.SilentProcessRunner.Nix
             if (process.HasExited)
                 process.Close();
         }
+
+        public Encoding GetOemEncoding()
+            => Encoding.UTF8;
     }
 }

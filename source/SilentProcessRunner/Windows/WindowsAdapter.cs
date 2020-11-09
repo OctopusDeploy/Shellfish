@@ -5,6 +5,7 @@ using System.Linq;
 using System.Management;
 using System.Net;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Octopus.SilentProcessRunner.Windows
 {
@@ -63,5 +64,9 @@ namespace Octopus.SilentProcessRunner.Windows
                 // SilentProcessRunner already exited.
             }
         }
+
+        public Encoding GetOemEncoding()
+         => WindowsEncodingHelper.GetOemEncoding();
+
     }
 }

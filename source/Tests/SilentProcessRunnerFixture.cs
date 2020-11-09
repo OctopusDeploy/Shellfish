@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using FluentAssertions;
 using NUnit.Framework;
 using Octopus.SilentProcessRunner;
+using Octopus.SilentProcessRunner.Windows;
 using Tests.Plumbing;
 
 namespace Tests
@@ -39,8 +41,11 @@ namespace Tests
                 customEnvironmentVariables,
                 cts.Token);
 
+            var expectedEncoding = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? WindowsEncodingHelper.GetOemEncoding() : Encoding.UTF8;
+
             exitCode.Should().Be(99, "our custom exit code should be reflected");
-            debugMessages.ToString().Should().ContainEquivalentOf($"Starting {Command} in working directory '' using '{SilentProcessRunner.EncodingDetector.GetOEMEncoding().EncodingName}' encoding running as '{ProcessIdentity.CurrentUserName}'");
+
+            debugMessages.ToString().Should().ContainEquivalentOf($"Starting {Command} in working directory '' using '{expectedEncoding.EncodingName}' encoding running as '{ProcessIdentity.CurrentUserName}'");
             errorMessages.ToString().Should().BeEmpty("no messages should be written to stderr");
             infoMessages.ToString().Should().BeEmpty("no messages should be written to stdout");
         }
