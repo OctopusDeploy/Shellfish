@@ -75,7 +75,7 @@ class Build : NukeBuild
         {
             var nugetVersion = GitVersion.NuGetVersion;
 
-            Logger.Info("Building Octopus.Process v{0}", nugetVersion);
+            Logger.Info("Building Octopus.SilentProcessRunner v{0}", nugetVersion);
             Logger.Info("Informational Version {0}", GitVersion.InformationalVersion);
 
             DotNetBuild(_ => _
@@ -107,7 +107,7 @@ class Build : NukeBuild
         .Executes(() =>
         {
             EnsureExistingDirectory(LocalPackagesDirectory);
-            CopyFileToDirectory(ArtifactsDirectory / $"Octopus.Process.{GitVersion.NuGetVersion}.nupkg", LocalPackagesDirectory, FileExistsPolicy.Overwrite);
+            CopyFileToDirectory(ArtifactsDirectory / $"Octopus.SilentProcessRunner.{GitVersion.NuGetVersion}.nupkg", LocalPackagesDirectory, FileExistsPolicy.Overwrite);
         });
 
     Target Default => _ => _

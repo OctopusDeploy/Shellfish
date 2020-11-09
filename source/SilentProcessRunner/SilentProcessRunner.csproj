@@ -2,9 +2,9 @@
 
   <PropertyGroup>
     <Authors>Octopus Deploy</Authors>
-    <AssemblyName>Octopus.Process</AssemblyName>
-    <RootNamespace>Octopus.Process</RootNamespace>
-    <PackageProjectUrl>https://github.com/OctopusDeploy/Process</PackageProjectUrl>
+    <AssemblyName>Octopus.SilentProcessRunner</AssemblyName>
+    <RootNamespace>Octopus.SilentProcessRunner</RootNamespace>
+    <PackageProjectUrl>https://github.com/OctopusDeploy/SilentProcessRunner</PackageProjectUrl>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <TargetFramework>netcoreapp3.1</TargetFramework>
