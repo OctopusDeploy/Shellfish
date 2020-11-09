@@ -3,7 +3,7 @@ using System.Security.Principal;
 
 namespace Octopus.SilentProcessRunner
 {
-    public static class ProcessIdentity
+    static class ProcessIdentity
     {
         public static string CurrentUserName => PlatformDetection.IsRunningOnWindows
             ?

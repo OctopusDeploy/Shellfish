@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Octopus.SilentProcessRunner.Windows
 {
-    static  class EnvironmentBlock
+    static class EnvironmentBlock
     {
         internal static Dictionary<string, string> GetEnvironmentVariablesForUser(AccessToken token, bool inheritFromCurrentProcess)
         {

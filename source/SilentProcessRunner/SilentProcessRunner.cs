@@ -1,18 +1,11 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Management;
 using System.Net;
 using System.Runtime.InteropServices;
-using System.Security.AccessControl;
-using System.Security.Principal;
-using System.Text;
 using System.Threading;
-using Microsoft.Win32.SafeHandles;
 using Octopus.Diagnostics;
 using Octopus.SilentProcessRunner.Nix;
 using Octopus.SilentProcessRunner.Windows;
@@ -21,7 +14,7 @@ namespace Octopus.SilentProcessRunner
 {
     public static class SilentProcessRunner
     {
-        static readonly IXPlatAdapter XPlatAdapter = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+        static readonly IXPlatAdapter XPlatAdapter = PlatformDetection.IsRunningOnWindows
             ? (IXPlatAdapter)new WindowsAdapter()
             : new NixAdapter();
 
@@ -116,7 +109,7 @@ namespace Octopus.SilentProcessRunner
 
                 using (var outputResetEvent = new ManualResetEventSlim(false))
                 using (var errorResetEvent = new ManualResetEventSlim(false))
-                using (var process = new System.Diagnostics.Process())
+                using (var process = new Process())
                 {
                     process.StartInfo.FileName = executable;
                     process.StartInfo.Arguments = arguments;
@@ -184,7 +177,7 @@ namespace Octopus.SilentProcessRunner
             }
         }
 
-        static int SafelyGetExitCode(System.Diagnostics.Process process)
+        static int SafelyGetExitCode(Process process)
         {
             try
             {
@@ -232,7 +225,7 @@ namespace Octopus.SilentProcessRunner
         {
             try
             {
-                using (var process = new System.Diagnostics.Process())
+                using (var process = new Process())
                 {
                     process.StartInfo.FileName = executable;
                     process.StartInfo.Arguments = arguments;
@@ -263,7 +256,7 @@ namespace Octopus.SilentProcessRunner
                     processStartInfo.EnvironmentVariables[variable.Key] = variable.Value;
         }
 
-        static void DoOurBestToCleanUp(System.Diagnostics.Process process, Action<string> error)
+        static void DoOurBestToCleanUp(Process process, Action<string> error)
         {
             try
             {

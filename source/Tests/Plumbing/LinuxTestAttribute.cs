@@ -14,7 +14,7 @@ namespace Tests.Plumbing
             if (test.RunState == RunState.NotRunnable || test.RunState == RunState.Ignored)
                 return;
 
-            if (!PlatformDetection.IsRunningOnNix)
+            if (PlatformDetection.IsRunningOnWindows)
             {
                 test.RunState = RunState.Skipped;
                 test.Properties.Add("_SKIPREASON", "This test only runs on Linux");

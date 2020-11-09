@@ -66,7 +66,6 @@ namespace Octopus.SilentProcessRunner.Windows
         }
 
         public Encoding GetOemEncoding()
-         => WindowsEncodingHelper.GetOemEncoding();
-
+            => WindowsEncodingHelper.GetOemEncoding();
     }
 }

@@ -8,13 +8,13 @@ namespace Octopus.SilentProcessRunner
     {
         readonly int exitCode;
 
-        public ProcessRunnerException(int exitCode, List<string> errors)
+        internal ProcessRunnerException(int exitCode, List<string> errors)
         {
             this.exitCode = exitCode;
             Errors = errors;
         }
 
-        public List<string> Errors { get; }
+        public IReadOnlyList<string> Errors { get; }
 
         public override string Message
         {
