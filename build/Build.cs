@@ -87,9 +87,23 @@ class Build : NukeBuild
                 .EnableNoRestore());
         });
 
+
+    Target Test => _ => _
+        .DependsOn(CalculateVersion)
+        .DependsOn(Compile)
+        .Executes(() =>
+        {
+            DotNetTest(_ => _
+                .SetProjectFile(Solution)
+                .SetConfiguration(Configuration)
+                .SetNoBuild(true)
+                .EnableNoRestore());
+        });
+
     Target Pack => _ => _
         .DependsOn(CalculateVersion)
         .DependsOn(Compile)
+        .DependsOn(Test)
         .Executes(() =>
         {
             DotNetPack(_ => _

@@ -6,7 +6,6 @@
     <RootNamespace>Octopus.SilentProcessRunner</RootNamespace>
     <PackageProjectUrl>https://github.com/OctopusDeploy/SilentProcessRunner</PackageProjectUrl>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
