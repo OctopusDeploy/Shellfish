@@ -56,7 +56,7 @@ class Build : NukeBuild
         .DependsOn(Restore)
         .Executes(() =>
         {
-            Logger.Info("Building Octopus.SilentProcessRunner v{0}", FullSemVer);
+            Logger.Info("Building Octopus.SilentProcessRunner v{0}", GitVersion.FullSemVer);
             Logger.Info("Informational Version {0}", GitVersion.InformationalVersion);
 
             DotNetBuild(_ => _
