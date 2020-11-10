@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading;
-using Octopus.Diagnostics;
 using Octopus.SilentProcessRunner.Nix;
 using Octopus.SilentProcessRunner.Plumbing;
 using Octopus.SilentProcessRunner.Windows;

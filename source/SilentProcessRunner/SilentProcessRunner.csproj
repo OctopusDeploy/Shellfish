@@ -21,7 +21,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Octopus.Diagnostics" Version="1.4.0-prettyprint0010" />
     <PackageReference Include="System.Management" Version="4.7.0" />
   </ItemGroup>
 
@@ -38,6 +37,7 @@
   <ItemGroup Condition=" '$(TargetFrameworkIdentifier)' == '.NETFramework' ">
     <Reference Include="System.DirectoryServices" />
     <Reference Include="System.Security" />
+    <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
   </ItemGroup>
 
 </Project>
