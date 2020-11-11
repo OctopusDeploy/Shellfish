@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -41,9 +40,8 @@ namespace Octopus.SilentProcessRunner.Plumbing
                 sb.AppendLine(ex.Message);
             }
 
-
             if (ex.GetType().Name == "ControlledFailureException")
-                 return;
+                return;
 
             if (printStackTrace)
                 AddStackTrace(sb, ex);
@@ -110,7 +108,6 @@ namespace Octopus.SilentProcessRunner.Plumbing
                 if (!string.IsNullOrEmpty(fusionLog))
                     sb.Append("Fusion log: ").AppendLine(fusionLog);
             }
-
         }
 
         static class StackTraceHelper
@@ -127,51 +124,35 @@ namespace Octopus.SilentProcessRunner.Plumbing
 
                 var sb = new StringBuilder();
 
-                foreach (var stackTrace in ex.StackTrace.Split(new[] {Environment.NewLine}, StringSplitOptions.RemoveEmptyEntries))
+                foreach (var stackTrace in ex.StackTrace.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries))
                 {
                     var s = stackTrace;
 
                     // Get rid of stack-frames that are part of the BCL async machinery
                     if (s.StartsWith("   at "))
-                    {
                         s = s.Substring(6);
-                    }
                     else
-                    {
                         continue;
-                    }
 
                     if (s == "System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)")
-                    {
                         continue;
-                    }
 
                     if (s == "System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)")
-                    {
                         continue;
-                    }
 
                     if (s == "System.Runtime.CompilerServices.TaskAwaiter`1.GetResult()")
-                    {
                         continue;
-                    }
 
                     if (s == "System.Runtime.CompilerServices.TaskAwaiter.GetResult()")
-                    {
                         continue;
-                    }
 
                     // Get rid of stack-frames that are part of the runtime exception handling machinery
                     if (s == "System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()")
-                    {
                         continue;
-                    }
 
                     // Get rid of stack-frames that are part of .NET Native machiner
                     if (s.Contains("!<BaseAddress>+0x"))
-                    {
                         continue;
-                    }
 
                     // Get rid of stack frames from VB and C# compiler-generated async state machine
                     s = Re1.Replace(s, "$1");
@@ -179,36 +160,30 @@ namespace Octopus.SilentProcessRunner.Plumbing
 
                     // If the stack trace had PDBs, "Alpha.Beta.GammaAsync in c:\code\module1.vb:line 53"
                     var re3Match = Re3.Match(s);
-                    s = re3Match.Success ? (re3Match.Groups[1].Value) : s;
-                    var pdbfile = re3Match.Success ? (re3Match.Groups[2].Value) : null;
-                    var pdbline = re3Match.Success ? ((int?) int.Parse(System.Convert.ToString(re3Match.Groups[3].Value))) : null;
+                    s = re3Match.Success ? re3Match.Groups[1].Value : s;
+                    var pdbfile = re3Match.Success ? re3Match.Groups[2].Value : null;
+                    var pdbline = re3Match.Success ? (int?)int.Parse(Convert.ToString(re3Match.Groups[3].Value)) : null;
 
                     // Get rid of stack frames from AsyncStackTrace
                     if (s.EndsWith("AsyncStackTraceExtensions.Log`1"))
-                    {
                         continue;
-                    }
 
                     if (s.EndsWith("AsyncStackTraceExtensions.Log"))
-                    {
                         continue;
-                    }
 
                     if (s.Contains("AsyncStackTraceExtensions.Log<"))
-                    {
                         continue;
-                    }
 
                     var fullyQualified = s;
 
                     if (pdbfile != null)
-                    {
-                        sb.AppendFormat("   at {1} in {2}:line {3}{0}", Environment.NewLine, fullyQualified, System.IO.Path.GetFileName(pdbfile), pdbline);
-                    }
+                        sb.AppendFormat("   at {1} in {2}:line {3}{0}",
+                            Environment.NewLine,
+                            fullyQualified,
+                            Path.GetFileName(pdbfile),
+                            pdbline);
                     else
-                    {
                         sb.AppendFormat("   at {1}{0}", "\r\n", fullyQualified);
-                    }
                 }
 
                 return sb.ToString();
