@@ -1,7 +1,7 @@
 using System;
 using System.ComponentModel;
 
-namespace Octopus.SilentProcessRunner.Windows
+namespace Octopus.Shellfish.Windows
 {
     static class Win32Helper
     {

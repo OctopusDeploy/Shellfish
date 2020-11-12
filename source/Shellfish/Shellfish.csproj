@@ -2,9 +2,9 @@
 
   <PropertyGroup>
     <Authors>Octopus Deploy</Authors>
-    <AssemblyName>Octopus.SilentProcessRunner</AssemblyName>
-    <RootNamespace>Octopus.SilentProcessRunner</RootNamespace>
-    <PackageProjectUrl>https://github.com/OctopusDeploy/SilentProcessRunner</PackageProjectUrl>
+    <AssemblyName>Octopus.Shellfish</AssemblyName>
+    <RootNamespace>Octopus.Shellfish</RootNamespace>
+    <PackageProjectUrl>https://github.com/OctopusDeploy/Shellfish</PackageProjectUrl>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <DisableImplicitPackageTargetFallback>true</DisableImplicitPackageTargetFallback>
     <Nullable>enable</Nullable>

@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace Octopus.SilentProcessRunner.Windows
+namespace Octopus.Shellfish.Windows
 {
     sealed class SafeAccessTokenHandle : SafeHandle
     {

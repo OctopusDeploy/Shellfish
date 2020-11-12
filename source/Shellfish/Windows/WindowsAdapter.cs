@@ -7,7 +7,7 @@ using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace Octopus.SilentProcessRunner.Windows
+namespace Octopus.Shellfish.Windows
 {
     class WindowsAdapter : IXPlatAdapter
     {
@@ -61,7 +61,7 @@ namespace Octopus.SilentProcessRunner.Windows
             }
             catch (ArgumentException)
             {
-                // SilentProcessRunner already exited.
+                // Shellfish already exited.
             }
         }
 

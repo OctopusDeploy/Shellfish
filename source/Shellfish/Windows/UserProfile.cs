@@ -2,7 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
-namespace Octopus.SilentProcessRunner.Windows
+namespace Octopus.Shellfish.Windows
 {
     class UserProfile : IDisposable
     {

@@ -2,13 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Octopus.SilentProcessRunner
+namespace Octopus.Shellfish
 {
-    public class SilentProcessRunnerException : Exception
+    public class ShellExecutionException : Exception
     {
         readonly int exitCode;
 
-        internal SilentProcessRunnerException(int exitCode, List<string> errors)
+        internal ShellExecutionException(int exitCode, List<string> errors)
         {
             this.exitCode = exitCode;
             Errors = errors;

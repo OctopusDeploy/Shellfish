@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Net;
 
-namespace Octopus.SilentProcessRunner.Windows
+namespace Octopus.Shellfish.Windows
 {
     static class WindowsEnvironmentVariableHelper
     {

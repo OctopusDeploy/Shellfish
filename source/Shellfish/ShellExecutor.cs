@@ -5,13 +5,13 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading;
-using Octopus.SilentProcessRunner.Nix;
-using Octopus.SilentProcessRunner.Plumbing;
-using Octopus.SilentProcessRunner.Windows;
+using Octopus.Shellfish.Nix;
+using Octopus.Shellfish.Plumbing;
+using Octopus.Shellfish.Windows;
 
-namespace Octopus.SilentProcessRunner
+namespace Octopus.Shellfish
 {
-    public static class SilentProcessRunner
+    public static class ShellExecutor
     {
         static readonly IXPlatAdapter XPlatAdapter = PlatformDetection.IsRunningOnWindows
             ? (IXPlatAdapter)new WindowsAdapter()
@@ -163,7 +163,7 @@ namespace Octopus.SilentProcessRunner
                         SafelyWaitForAllOutput(errorResetEvent, cancel, debug);
 
                         var exitCode = SafelyGetExitCode(process);
-                        debug($"SilentProcessRunner {exeFileNameOrFullPath} in {workingDirectory} exited with code {exitCode}");
+                        debug($"Shellfish {exeFileNameOrFullPath} in {workingDirectory} exited with code {exitCode}");
 
                         running = false;
                         return exitCode;

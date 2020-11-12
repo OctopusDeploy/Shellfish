@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Text;
 
-namespace Octopus.SilentProcessRunner.Nix
+namespace Octopus.Shellfish.Nix
 {
     class NixAdapter : IXPlatAdapter
     {
@@ -14,7 +14,7 @@ namespace Octopus.SilentProcessRunner.Nix
         public void TryKillProcessAndChildrenRecursively(Process process)
         {
             var messages = new List<string>();
-            var result = SilentProcessRunner.ExecuteCommand(
+            var result = ShellExecutor.ExecuteCommand(
                 "/bin/bash",
                 $"-c \"kill -TERM {process.Id}\"",
                 Environment.CurrentDirectory,
@@ -24,7 +24,7 @@ namespace Octopus.SilentProcessRunner.Nix
             );
 
             if (result != 0)
-                throw new SilentProcessRunnerException(result, messages);
+                throw new ShellExecutionException(result, messages);
 
             //process.Kill() doesnt seem to work in netcore 2.2 there have been some improvments in netcore 3.0 as well as also allowing to kill child processes
             //https://github.com/dotnet/corefx/pull/34147

@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Text;
 
-namespace Octopus.SilentProcessRunner
+namespace Octopus.Shellfish
 {
     interface IXPlatAdapter
     {

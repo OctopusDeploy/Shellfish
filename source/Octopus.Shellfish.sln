@@ -28,10 +28,10 @@ EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "source", "source", "{5C62AF9D-0E68-4FB1-9E90-738D9724F666}"
 ProjectSection(SolutionItems) = preProject
-	Octopus.SilentProcessRunner.sln.DotSettings = Octopus.SilentProcessRunner.sln.DotSettings
+	Octopus.Shellfish.sln.DotSettings = Octopus.Shellfish.sln.DotSettings
 EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SilentProcessRunner", "SilentProcessRunner\SilentProcessRunner.csproj", "{0910DAE8-7826-4567-96BF-D3DB6196AA2A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shellfish", "Shellfish\Shellfish.csproj", "{0910DAE8-7826-4567-96BF-D3DB6196AA2A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{B9A1B461-6A07-44CA-A5D8-0E08CBF0F95D}"
 EndProject

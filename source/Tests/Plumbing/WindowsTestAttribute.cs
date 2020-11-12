@@ -2,7 +2,7 @@ using System;
 using NUnit.Framework;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
-using Octopus.SilentProcessRunner.Plumbing;
+using Octopus.Shellfish.Plumbing;
 
 namespace Tests.Plumbing
 {

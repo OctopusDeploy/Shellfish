@@ -4,7 +4,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Octopus.SilentProcessRunner.Plumbing
+namespace Octopus.Shellfish.Plumbing
 {
     // Copied so we don't need to add another dependency
     static class ExceptionExtensions

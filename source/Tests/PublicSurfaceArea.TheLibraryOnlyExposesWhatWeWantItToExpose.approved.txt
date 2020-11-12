@@ -1,4 +1,4 @@
-Octopus.SilentProcessRunner.SilentProcessRunner.ExecuteCommand
-Octopus.SilentProcessRunner.SilentProcessRunner.ExecuteCommandWithoutWaiting
-Octopus.SilentProcessRunner.SilentProcessRunnerException.Errors
-Octopus.SilentProcessRunner.SilentProcessRunnerException.Message
+Octopus.Shellfish.ShellExecutionException.Errors
+Octopus.Shellfish.ShellExecutionException.Message
+Octopus.Shellfish.ShellExecutor.ExecuteCommand
+Octopus.Shellfish.ShellExecutor.ExecuteCommandWithoutWaiting

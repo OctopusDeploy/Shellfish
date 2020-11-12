@@ -6,19 +6,19 @@ using System.Text;
 using System.Threading;
 using FluentAssertions;
 using NUnit.Framework;
-using Octopus.SilentProcessRunner;
-using Octopus.SilentProcessRunner.Plumbing;
-using Octopus.SilentProcessRunner.Windows;
+using Octopus.Shellfish;
+using Octopus.Shellfish.Plumbing;
+using Octopus.Shellfish.Windows;
 using Tests.Plumbing;
 
 namespace Tests
 {
     [TestFixture]
-    public class SilentProcessRunnerFixture
+    public class ShellExecutorFixture
     {
         const int SIG_TERM = 143;
         const int SIG_KILL = 137;
-        const string Username = "test-silentprocess";
+        const string Username = "test-shellexecutor";
 
         static readonly string Command = PlatformDetection.IsRunningOnWindows ? "cmd.exe" : "bash";
         static readonly string CommandParam = PlatformDetection.IsRunningOnWindows ? "/c" : "-c";
@@ -425,7 +425,7 @@ namespace Tests
             var debug = new StringBuilder();
             var info = new StringBuilder();
             var error = new StringBuilder();
-            var exitCode = SilentProcessRunner.ExecuteCommand(
+            var exitCode = ShellExecutor.ExecuteCommand(
                 command,
                 arguments,
                 workingDirectory,

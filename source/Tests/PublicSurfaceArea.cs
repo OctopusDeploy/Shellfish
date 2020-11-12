@@ -3,7 +3,7 @@ using System.Linq;
 using System.Reflection;
 using Assent;
 using NUnit.Framework;
-using Octopus.SilentProcessRunner;
+using Octopus.Shellfish;
 
 namespace Tests
 {
@@ -12,7 +12,7 @@ namespace Tests
         [Test]
         public void TheLibraryOnlyExposesWhatWeWantItToExpose()
         {
-            var assembly = typeof(SilentProcessRunner).Assembly;
+            var assembly = typeof(ShellExecutor).Assembly;
             var publicMembers =
                 from t in assembly.GetExportedTypes()
                 from m in t.GetMembers(BindingFlags.Public | BindingFlags.DeclaredOnly | BindingFlags.Static | BindingFlags.Instance)
