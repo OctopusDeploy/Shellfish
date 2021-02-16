@@ -13,14 +13,6 @@ ProjectSection(SolutionItems) = preProject
 	..\readme.md = ..\readme.md
 EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build", "build", "{6292DEF5-E6B1-4590-B882-C6C616E66E52}"
-ProjectSection(SolutionItems) = preProject
-	..\build\.editorconfig = ..\build\.editorconfig
-	..\build\_build.csproj = ..\build\_build.csproj
-	..\build\_build.csproj.DotSettings = ..\build\_build.csproj.DotSettings
-	..\build\Build.cs = ..\build\Build.cs
-EndProjectSection
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{F2E52E31-40D3-4D04-964B-10EB9432BA47}"
 ProjectSection(SolutionItems) = preProject
 	..\.github\dependabot.yml = ..\.github\dependabot.yml
@@ -34,6 +26,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shellfish", "Shellfish\Shellfish.csproj", "{0910DAE8-7826-4567-96BF-D3DB6196AA2A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{B9A1B461-6A07-44CA-A5D8-0E08CBF0F95D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "_build", "..\build\_build.csproj", "{8A3E1E96-29DF-4A38-8FA5-63075EF50767}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -49,5 +43,7 @@ Global
 		{B9A1B461-6A07-44CA-A5D8-0E08CBF0F95D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B9A1B461-6A07-44CA-A5D8-0E08CBF0F95D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B9A1B461-6A07-44CA-A5D8-0E08CBF0F95D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8A3E1E96-29DF-4A38-8FA5-63075EF50767}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A3E1E96-29DF-4A38-8FA5-63075EF50767}.Release|Any CPU.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 EndGlobal
