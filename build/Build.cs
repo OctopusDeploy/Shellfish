@@ -88,20 +88,17 @@ class Build : NukeBuild
 
     Target CopyToLocalPackages => _ => _
         .OnlyWhenStatic(() => IsLocalBuild)
-        .DependsOn(Pack)
+        .TriggeredBy(Pack)
         .Executes(() =>
         {
             EnsureExistingDirectory(LocalPackagesDirectory);
             CopyFileToDirectory(ArtifactsDirectory / $"Octopus.Shellfish.{OctoVersionInfo.FullSemVer}.nupkg", LocalPackagesDirectory, FileExistsPolicy.Overwrite);
         });
 
-    Target Default => _ => _
-        .DependsOn(CopyToLocalPackages);
-
     /// Support plugins are available for:
     /// - JetBrains ReSharper        https://nuke.build/resharper
     /// - JetBrains Rider            https://nuke.build/rider
     /// - Microsoft VisualStudio     https://nuke.build/visualstudio
     /// - Microsoft VSCode           https://nuke.build/vscode
-    public static int Main() => Execute<Build>(x => x.Default);
+    public static int Main() => Execute<Build>(x => x.Pack);
 }
