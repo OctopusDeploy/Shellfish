@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageDownload Include="OctoVersion.Tool" Version="[0.2.560]" />
+    <PackageDownload Include="OctoVersion.Tool" Version="[0.2.613]" />
   </ItemGroup>
 
 </Project>
