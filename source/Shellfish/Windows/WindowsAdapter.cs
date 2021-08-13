@@ -14,10 +14,12 @@ namespace Octopus.Shellfish.Windows
         public void RunAsDifferentUser(ProcessStartInfo startInfo, NetworkCredential runAs, IDictionary<string, string>? customEnvironmentVariables)
         {
 #pragma warning disable PC001 // API not supported on all platforms
+#pragma warning disable CA1416 // This call site is reachable on all platforms.
             startInfo.UserName = runAs.UserName;
             startInfo.Domain = runAs.Domain;
             startInfo.Password = runAs.SecurePassword;
             startInfo.LoadUserProfile = true;
+#pragma warning restore CA1416
 #pragma warning restore PC001 // API not supported on all platforms
 
             WindowStationAndDesktopAccess.GrantAccessToWindowStationAndDesktop(runAs.UserName, runAs.Domain);
