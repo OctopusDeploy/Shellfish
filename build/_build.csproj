@@ -11,7 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Nuke.Common" Version="5.4.0-mattr-octoversio0041" />
+    <PackageReference Include="Nuke.Common" Version="5.4.0-mattr-octoversio0043" />
   </ItemGroup>
 
   <ItemGroup>
@@ -19,3 +19,4 @@
   </ItemGroup>
 
 </Project>
+
