@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="!$([MSBuild]::IsOSUnixLike())">
-    <TargetFrameworks>net452;netcoreapp3.1;net5.0</TargetFrameworks>
+    <TargetFrameworks>net462;netcoreapp3.1;net5.0</TargetFrameworks>
   </PropertyGroup>
   <PropertyGroup Condition="$([MSBuild]::IsOSUnixLike())">
     <TargetFrameworks>netcoreapp3.1;net5.0</TargetFrameworks>
