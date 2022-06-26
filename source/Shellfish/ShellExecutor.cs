@@ -146,9 +146,9 @@ namespace Octopus.Shellfish
                     var running = true;
 
                     using (cancel.Register(() =>
-                    {
-                        if (running) DoOurBestToCleanUp(process, error);
-                    }))
+                           {
+                               if (running) DoOurBestToCleanUp(process, error);
+                           }))
                     {
                         if (cancel.IsCancellationRequested)
                             DoOurBestToCleanUp(process, error);
