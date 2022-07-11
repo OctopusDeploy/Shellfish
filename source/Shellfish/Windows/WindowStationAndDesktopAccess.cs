@@ -30,10 +30,8 @@ namespace Octopus.Shellfish.Windows
                     AccessControlSections.Access);
 
             var account = string.IsNullOrEmpty(domainName)
-#pragma warning disable PC001 // API not supported on all platforms
                 ? new NTAccount(username)
-                : new NTAccount(domainName, username);
-#pragma warning restore PC001 // API not supported on all platforms
+                : new NTAccount(domainName!, username);
 
             security.AddAccessRule(
                 new GenericAccessRule(
