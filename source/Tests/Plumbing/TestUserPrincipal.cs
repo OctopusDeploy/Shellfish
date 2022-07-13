@@ -1,6 +1,7 @@
 ﻿using System;
 using System.DirectoryServices.AccountManagement;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Security.Principal;
 
 namespace Tests.Plumbing
@@ -9,6 +10,11 @@ namespace Tests.Plumbing
     {
         public TestUserPrincipal(string username, string password = "Password01!")
         {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                throw new PlatformNotSupportedException();
+            }
+
             try
             {
                 using (var principalContext = new PrincipalContext(ContextType.Machine))
@@ -51,7 +57,8 @@ namespace Tests.Plumbing
         }
 
         public SecurityIdentifier Sid { get; }
-        public string NTAccountName => Sid.Translate(typeof(NTAccount)).ToString();
+
+        public string NTAccountName => RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? Sid.Translate(typeof(NTAccount)).ToString() : throw new PlatformNotSupportedException();
         public string DomainName => NTAccountName.Split(new[] { '\\' }, 2)[0];
         public string UserName => NTAccountName.Split(new[] { '\\' }, 2)[1];
         public string SamAccountName { get; }
