@@ -11,9 +11,7 @@ namespace Tests.Plumbing
         public TestUserPrincipal(string username, string password = "Password01!")
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
                 throw new PlatformNotSupportedException();
-            }
 
             try
             {
