@@ -276,7 +276,6 @@ namespace Octopus.Shellfish
                 }
                 catch (Exception killProcessException)
                 {
-                    //Test Message  
                     error($"Failed to kill the launched process: {killProcessException}");
                 }
             }
