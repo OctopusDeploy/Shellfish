@@ -25,8 +25,8 @@ class Build : NukeBuild
     [Parameter("Whether to auto-detect the branch name - this is okay for a local build, but should not be used under CI.")] readonly bool AutoDetectBranch = IsLocalBuild;
 
     [OctoVersion(Framework = "net6.0",
-        BranchParameter = nameof(BranchName), 
-        AutoDetectBranchParameter = nameof(AutoDetectBranch))] 
+        BranchParameter = nameof(BranchName),
+        AutoDetectBranchParameter = nameof(AutoDetectBranch))]
     public OctoVersionInfo OctoVersionInfo;
 
     [Parameter("Branch name for OctoVersion to use to calculate the version number. Can be set via the environment variable " + CiBranchNameEnvVariable + ".", Name = CiBranchNameEnvVariable)]
