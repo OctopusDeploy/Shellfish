@@ -114,7 +114,7 @@ class Build : NukeBuild
     Target Pack => _ => _
         .DependsOn(BuildAndTestWindows)
         .Consumes(BuildAndTestWindows, "*") //this can go :boom: if the target is not specified by `.DependsOn()`
-        .Produces("artifacts/*") //this feels like it should be on Pack, not here
+        .Produces("artifacts/*")
         .Executes(() =>
         {
             DotNetPack(_ => _
@@ -184,9 +184,7 @@ class Build : NukeBuild
     
     Target ChainNightlyBuild => _ => _
         .DependsOn(CalculateVersion) //we need to generate a "always re-run" here
-        .DependsOn(TestLinux)
-        .DependsOn(BuildAndTestWindows)
-        .DependsOn(Publish);
+        .DependsOn(ChainBuildAndTestAndPublish);
     
     /// Support plugins are available for:
     /// - JetBrains ReSharper        https://nuke.build/resharper
