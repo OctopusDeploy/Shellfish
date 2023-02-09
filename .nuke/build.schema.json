@@ -79,13 +79,17 @@
           "items": {
             "type": "string",
             "enum": [
+              "BuildAndTestWindows",
               "CalculateVersion",
+              "ChainBuildAndTestAndPublish",
               "Clean",
               "Compile",
               "CopyToLocalPackages",
               "Pack",
+              "Publish",
               "Restore",
-              "Test"
+              "Test",
+              "TestLinux"
             ]
           }
         },
@@ -99,13 +103,17 @@
           "items": {
             "type": "string",
             "enum": [
+              "BuildAndTestWindows",
               "CalculateVersion",
+              "ChainBuildAndTestAndPublish",
               "Clean",
               "Compile",
               "CopyToLocalPackages",
               "Pack",
+              "Publish",
               "Restore",
-              "Test"
+              "Test",
+              "TestLinux"
             ]
           }
         },

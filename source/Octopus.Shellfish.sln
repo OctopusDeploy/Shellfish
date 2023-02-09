@@ -11,6 +11,7 @@ ProjectSection(SolutionItems) = preProject
 	..\GitVersion.yml = ..\GitVersion.yml
 	..\LICENSE.txt = ..\LICENSE.txt
 	..\readme.md = ..\readme.md
+	..\global.json = ..\global.json
 EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{F2E52E31-40D3-4D04-964B-10EB9432BA47}"
@@ -28,6 +29,12 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{B9A1B461-6A07-44CA-A5D8-0E08CBF0F95D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "_build", "..\build\_build.csproj", "{8A3E1E96-29DF-4A38-8FA5-63075EF50767}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".teamcity", ".teamcity", "{0902694C-60AD-4ED3-A03E-C431274E7FA6}"
+	ProjectSection(SolutionItems) = preProject
+		..\.teamcity\pom.xml = ..\.teamcity\pom.xml
+		..\.teamcity\settings.kts = ..\.teamcity\settings.kts
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
