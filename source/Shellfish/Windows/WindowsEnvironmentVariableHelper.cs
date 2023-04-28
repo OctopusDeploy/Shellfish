@@ -58,10 +58,9 @@ namespace Octopus.Shellfish.Windows
 
                 Dictionary<string, string> targetUserEnvironmentVariables;
                 using (var token = AccessToken.Logon(runAs.UserName, runAs.Password, runAs.Domain))
-                using (var userProfile = UserProfile.Load(token))
+                using (UserProfile.Load(token))
                 {
                     targetUserEnvironmentVariables = EnvironmentBlock.GetEnvironmentVariablesForUser(token, false);
-                    userProfile.Unload();
                 }
 
                 // Cache the target user's environment variables so we don't have to load them every time

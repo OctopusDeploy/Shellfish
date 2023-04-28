@@ -30,7 +30,7 @@ namespace Octopus.Shellfish.Windows
             return new UserProfile(token, new SafeRegistryHandle(userProfile.hProfile, false));
         }
 
-        public void Unload()
+        void Unload()
         {
             // See https://msdn.microsoft.com/en-us/library/windows/desktop/bb762282(v=vs.85).aspx
             // This function closes the registry handle for the user profile too
@@ -42,15 +42,7 @@ namespace Octopus.Shellfish.Windows
         {
             if (userProfile != null && !userProfile.IsClosed)
             {
-                try
-                {
-                    Unload();
-                }
-                catch
-                {
-                    // Don't throw in dispose method
-                }
-
+                Unload();
                 userProfile.Dispose();
             }
         }
