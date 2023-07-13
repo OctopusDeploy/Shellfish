@@ -184,7 +184,8 @@ namespace Octopus.Shellfish
             {
                 return process.ExitCode;
             }
-            catch (InvalidOperationException ex) when (ex.Message == "No process is associated with this object.")
+            catch (InvalidOperationException ex)
+                when (ex.Message is "No process is associated with this object." || ex.Message is "Process was not started by this object, so requested information cannot be determined.")
             {
                 return -1;
             }
