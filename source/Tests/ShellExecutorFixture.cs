@@ -16,6 +16,7 @@ namespace Tests
     [TestFixture]
     public class ShellExecutorFixture
     {
+        // ReSharper disable InconsistentNaming
         const int SIG_TERM = 143;
         const int SIG_KILL = 137;
         const string Username = "test-shellexecutor";
@@ -23,10 +24,21 @@ namespace Tests
         static readonly string Command = PlatformDetection.IsRunningOnWindows ? "cmd.exe" : "bash";
         static readonly string CommandParam = PlatformDetection.IsRunningOnWindows ? "/c" : "-c";
 
+        // Mimic the cancellation behaviour from LoggedTest in Octopus Server; we can't reference it in this assembly
+        static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(45);
+
+        CancellationTokenSource cancellationTokenSource = null!; // overwritten in SetUp
+        CancellationToken CancellationToken => cancellationTokenSource.Token;
+
+        [SetUp]
+        public void SetUp()
+        {
+            cancellationTokenSource = new CancellationTokenSource(TestTimeout);
+        }
+
         [Test]
         public void ExitCode_ShouldBeReturned()
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             var arguments = $"{CommandParam} \"exit 99\"";
             var workingDirectory = "";
             var networkCredential = default(NetworkCredential);
@@ -40,7 +52,7 @@ namespace Tests
                 out var errorMessages,
                 networkCredential,
                 customEnvironmentVariables,
-                cts.Token);
+                CancellationToken);
 
             var expectedEncoding = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? WindowsEncodingHelper.GetOemEncoding() : Encoding.UTF8;
 
@@ -54,8 +66,6 @@ namespace Tests
         [Test]
         public void DebugLogging_ShouldContainDiagnosticsInfo_ForDefault()
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-
             var arguments = $"{CommandParam} \"echo hello\"";
             var workingDirectory = "";
             var networkCredential = default(NetworkCredential);
@@ -69,7 +79,7 @@ namespace Tests
                 out var errorMessages,
                 networkCredential,
                 customEnvironmentVariables,
-                cts.Token);
+                CancellationToken);
 
             exitCode.Should().Be(0, "the process should have run to completion");
             debugMessages.ToString()
@@ -83,8 +93,6 @@ namespace Tests
         [Test]
         public void RunningAsSameUser_ShouldCopySpecialEnvironmentVariables()
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-
             var arguments = $"{CommandParam} \"echo {EchoEnvironmentVariable("customenvironmentvariable")}\"";
             var workingDirectory = "";
             var networkCredential = default(NetworkCredential);
@@ -96,12 +104,12 @@ namespace Tests
             var exitCode = Execute(Command,
                 arguments,
                 workingDirectory,
-                out var debugMessages,
+                out _,
                 out var infoMessages,
                 out var errorMessages,
                 networkCredential,
                 customEnvironmentVariables,
-                cts.Token);
+                CancellationToken);
 
             exitCode.Should().Be(0, "the process should have run to completion");
             infoMessages.ToString().Should().ContainEquivalentOf("customvalue", "the environment variable should have been copied to the child process");
@@ -113,8 +121,6 @@ namespace Tests
         public void DebugLogging_ShouldContainDiagnosticsInfo_DifferentUser()
         {
             var user = new TestUserPrincipal(Username);
-
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
             var arguments = $"{CommandParam} \"echo %userdomain%\\%username%\"";
             // Target the CommonApplicationData folder since this is a place the particular user can get to
@@ -130,7 +136,7 @@ namespace Tests
                 out var errorMessages,
                 networkCredential,
                 customEnvironmentVariables,
-                cts.Token);
+                CancellationToken);
 
             exitCode.Should().Be(0, "the process should have run to completion");
             debugMessages.ToString()
@@ -148,8 +154,6 @@ namespace Tests
         {
             var user = new TestUserPrincipal(Username);
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-
             var arguments = $"{CommandParam} \"echo {EchoEnvironmentVariable("customenvironmentvariable")}\"";
             // Target the CommonApplicationData folder since this is a place the particular user can get to
             var workingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
@@ -162,12 +166,12 @@ namespace Tests
             var exitCode = Execute(Command,
                 arguments,
                 workingDirectory,
-                out var debugMessages,
+                out _,
                 out var infoMessages,
                 out var errorMessages,
                 networkCredential,
                 customEnvironmentVariables,
-                cts.Token);
+                CancellationToken);
 
             exitCode.Should().Be(0, "the process should have run to completion");
             infoMessages.ToString().Should().ContainEquivalentOf("customvalue", "the environment variable should have been copied to the child process");
@@ -180,7 +184,7 @@ namespace Tests
         {
             var user = new TestUserPrincipal(Username);
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(240));
 
             for (var i = 0; i < 20; i++)
             {
@@ -196,7 +200,7 @@ namespace Tests
                 var exitCode = Execute(Command,
                     arguments,
                     workingDirectory,
-                    out var debugMessages,
+                    out _,
                     out var infoMessages,
                     out var errorMessages,
                     networkCredential,
@@ -215,27 +219,24 @@ namespace Tests
         {
             var user = new TestUserPrincipal(Username);
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            {
-                var arguments = $"{CommandParam} \"echo hello > %temp%hello.txt\"";
-                // Target the CommonApplicationData folder since this is a place the particular user can get to
-                var workingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-                var networkCredential = user.GetCredential();
-                var customEnvironmentVariables = new Dictionary<string, string>();
+            var arguments = $"{CommandParam} \"echo hello > %temp%hello.txt\"";
+            // Target the CommonApplicationData folder since this is a place the particular user can get to
+            var workingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+            var networkCredential = user.GetCredential();
+            var customEnvironmentVariables = new Dictionary<string, string>();
 
-                var exitCode = Execute(Command,
-                    arguments,
-                    workingDirectory,
-                    out var debugMessages,
-                    out var infoMessages,
-                    out var errorMessages,
-                    networkCredential,
-                    customEnvironmentVariables,
-                    cts.Token);
+            var exitCode = Execute(Command,
+                arguments,
+                workingDirectory,
+                out _,
+                out _,
+                out var errorMessages,
+                networkCredential,
+                customEnvironmentVariables,
+                CancellationToken);
 
-                exitCode.Should().Be(0, "the process should have run to completion after writing to the temp folder for the other user");
-                errorMessages.ToString().Should().BeEmpty("no messages should be written to stderr");
-            }
+            exitCode.Should().Be(0, "the process should have run to completion after writing to the temp folder for the other user");
+            errorMessages.ToString().Should().BeEmpty("no messages should be written to stderr");
         }
 
         [Test]
@@ -254,7 +255,7 @@ namespace Tests
             var exitCode = Execute(Command,
                 arguments,
                 workingDirectory,
-                out var debugMessages,
+                out _,
                 out var infoMessages,
                 out var errorMessages,
                 networkCredential,
@@ -277,8 +278,6 @@ namespace Tests
         [Test]
         public void EchoHello_ShouldWriteToStdOut()
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-
             var arguments = $"{CommandParam} \"echo hello\"";
             var workingDirectory = "";
             var networkCredential = default(NetworkCredential);
@@ -287,12 +286,12 @@ namespace Tests
             var exitCode = Execute(Command,
                 arguments,
                 workingDirectory,
-                out var debugMessages,
+                out _,
                 out var infoMessages,
                 out var errorMessages,
                 networkCredential,
                 customEnvironmentVariables,
-                cts.Token);
+                CancellationToken);
 
             exitCode.Should().Be(0, "the process should have run to completion");
             errorMessages.ToString().Should().BeEmpty("no messages should be written to stderr");
@@ -302,8 +301,6 @@ namespace Tests
         [Test]
         public void EchoError_ShouldWriteToStdErr()
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-
             var arguments = $"{CommandParam} \"echo Something went wrong! 1>&2\"";
             var workingDirectory = "";
             var networkCredential = default(NetworkCredential);
@@ -312,12 +309,12 @@ namespace Tests
             var exitCode = Execute(Command,
                 arguments,
                 workingDirectory,
-                out var debugMessages,
+                out _,
                 out var infoMessages,
                 out var errorMessages,
                 networkCredential,
                 customEnvironmentVariables,
-                cts.Token);
+                CancellationToken);
 
             exitCode.Should().Be(0, "the process should have run to completion");
             infoMessages.ToString().Should().BeEmpty("no messages should be written to stdout");
@@ -327,8 +324,6 @@ namespace Tests
         [Test]
         public void RunAsCurrentUser_ShouldWork()
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-
             var arguments = PlatformDetection.IsRunningOnWindows
                 ? $"{CommandParam} \"echo {EchoEnvironmentVariable("username")}\""
                 : $"{CommandParam} \"whoami\"";
@@ -339,12 +334,12 @@ namespace Tests
             var exitCode = Execute(Command,
                 arguments,
                 workingDirectory,
-                out var debugMessages,
+                out _,
                 out var infoMessages,
                 out var errorMessages,
                 networkCredential,
                 customEnvironmentVariables,
-                cts.Token);
+                CancellationToken);
 
             exitCode.Should().Be(0, "the process should have run to completion");
             errorMessages.ToString().Should().BeEmpty("no messages should be written to stderr");
@@ -356,8 +351,6 @@ namespace Tests
         [TestCase("powershell.exe", "-command \"Write-Host $env:userdomain\\$env:username\"")]
         public void RunAsCurrentUser_PowerShell_ShouldWork(string command, string arguments)
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-
             var workingDirectory = "";
             var networkCredential = default(NetworkCredential);
             var customEnvironmentVariables = new Dictionary<string, string>();
@@ -365,12 +358,12 @@ namespace Tests
             var exitCode = Execute(command,
                 arguments,
                 workingDirectory,
-                out var debugMessages,
+                out _,
                 out var infoMessages,
                 out var errorMessages,
                 networkCredential,
                 customEnvironmentVariables,
-                cts.Token);
+                CancellationToken);
 
             exitCode.Should().Be(0, "the process should have run to completion");
             errorMessages.ToString().Should().BeEmpty("no messages should be written to stderr");
@@ -385,8 +378,6 @@ namespace Tests
         {
             var user = new TestUserPrincipal(Username);
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-
             // Target the CommonApplicationData folder since this is a place the particular user can get to
             var workingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
             var networkCredential = user.GetCredential();
@@ -395,12 +386,12 @@ namespace Tests
             var exitCode = Execute(command,
                 arguments,
                 workingDirectory,
-                out var debugMessages,
+                out _,
                 out var infoMessages,
                 out var errorMessages,
                 networkCredential,
                 customEnvironmentVariables,
-                cts.Token);
+                CancellationToken);
 
             exitCode.Should().Be(0, "the process should have run to completion");
             errorMessages.ToString().Should().BeEmpty("no messages should be written to stderr");
