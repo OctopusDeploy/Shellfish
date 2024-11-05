@@ -2,14 +2,14 @@ using System;
 using System.Linq;
 using System.Reflection;
 using Assent;
-using NUnit.Framework;
 using Octopus.Shellfish;
+using Xunit;
 
 namespace Tests
 {
     public class PublicSurfaceArea
     {
-        [Test]
+        [Fact]
         public void TheLibraryOnlyExposesWhatWeWantItToExpose()
         {
             var assembly = typeof(ShellExecutor).Assembly;

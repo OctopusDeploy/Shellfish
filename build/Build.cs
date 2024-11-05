@@ -12,7 +12,6 @@ using Serilog;
 using static Nuke.Common.IO.FileSystemTasks;
 using static Nuke.Common.Tools.DotNet.DotNetTasks;
 
-[CheckBuildProjectConfigurations]
 [UnsetVisualStudioEnvironmentVariables]
 class Build : NukeBuild
 {
@@ -24,9 +23,9 @@ class Build : NukeBuild
 
     [Parameter("Whether to auto-detect the branch name - this is okay for a local build, but should not be used under CI.")] readonly bool AutoDetectBranch = IsLocalBuild;
 
-    [OctoVersion(Framework = "net6.0",
-        BranchParameter = nameof(BranchName),
-        AutoDetectBranchParameter = nameof(AutoDetectBranch))]
+    [OctoVersion(Framework = "net8.0",
+        BranchMember = nameof(BranchName),
+        AutoDetectBranchMember = nameof(AutoDetectBranch))]
     public OctoVersionInfo OctoVersionInfo;
 
     [Parameter("Branch name for OctoVersion to use to calculate the version number. Can be set via the environment variable " + CiBranchNameEnvVariable + ".", Name = CiBranchNameEnvVariable)]
@@ -36,59 +35,63 @@ class Build : NukeBuild
     AbsolutePath ArtifactsDirectory => RootDirectory / "artifacts";
     AbsolutePath LocalPackagesDirectory => RootDirectory / ".." / "LocalPackages";
 
-    Target Clean => _ => _
+    Target Clean => t => t
         .Before(Restore)
         .Executes(() =>
         {
-            SourceDirectory.GlobDirectories("**/bin", "**/obj", "**/TestResults").ForEach(DeleteDirectory);
-            EnsureCleanDirectory(ArtifactsDirectory);
+            foreach (var dir in SourceDirectory.GlobDirectories("**/bin", "**/obj", "**/TestResults"))
+            {
+                dir.DeleteDirectory();
+            }
+
+            ArtifactsDirectory.CreateOrCleanDirectory();
         });
 
-    Target CalculateVersion => _ => _
+    Target CalculateVersion => t => t
         .Executes(() =>
         {
             //all the magic happens inside `[NukeOctoVersion]` above. we just need a target for TeamCity to call
         });
 
-    Target Restore => _ => _
+    Target Restore => t => t
         .DependsOn(Clean)
         .Executes(() =>
         {
-            DotNetRestore(_ => _
+            DotNetRestore(t => t
                 .SetProjectFile(Solution));
         });
 
-    Target Compile => _ => _
+    Target Compile => t => t
         .DependsOn(Clean)
         .DependsOn(Restore)
         .Executes(() =>
         {
             Log.Information("Building Octopus.Shellfish v{0}", OctoVersionInfo.FullSemVer);
 
-            DotNetBuild(_ => _
+            DotNetBuild(t => t
                 .SetProjectFile(Solution)
                 .SetConfiguration(Configuration)
                 .SetVersion(OctoVersionInfo.FullSemVer)
                 .EnableNoRestore());
         });
 
-    Target Test => _ => _
+    Target Test => t => t
         .DependsOn(Compile)
         .Executes(() =>
         {
-            DotNetTest(_ => _
+            DotNetTest(t => t
                 .SetProjectFile(Solution)
                 .SetConfiguration(Configuration)
                 .SetNoBuild(true)
                 .EnableNoRestore());
         });
 
-    Target Pack => _ => _
+    Target Pack => t => t
         .DependsOn(Compile)
         .DependsOn(Test)
         .Executes(() =>
         {
-            DotNetPack(_ => _
+            DotNetPack(t => t
                 .SetProject(Solution)
                 .SetConfiguration(Configuration)
                 .SetOutputDirectory(ArtifactsDirectory)
@@ -97,13 +100,15 @@ class Build : NukeBuild
             );
         });
 
-    Target CopyToLocalPackages => _ => _
+    Target CopyToLocalPackages => t => t
         .OnlyWhenStatic(() => IsLocalBuild)
         .TriggeredBy(Pack)
         .Executes(() =>
         {
-            EnsureExistingDirectory(LocalPackagesDirectory);
-            CopyFileToDirectory(ArtifactsDirectory / $"Octopus.Shellfish.{OctoVersionInfo.FullSemVer}.nupkg", LocalPackagesDirectory, FileExistsPolicy.Overwrite);
+            LocalPackagesDirectory.CreateDirectory();
+
+            var pkg = ArtifactsDirectory / $"Octopus.Shellfish.{OctoVersionInfo.FullSemVer}.nupkg";
+            pkg.CopyToDirectory(LocalPackagesDirectory, ExistsPolicy.FileOverwrite);
         });
 
     /// Support plugins are available for:
