@@ -2,4 +2,4 @@ This repository contains the ShellRunner and other command line invocation thing
 Please see [Contributing](CONTRIBUTING.md)
 
 ## Releasing
-Merges to master will be shipped automatically. No tagging is required.
+Merges to the `main` branch will be shipped automatically. No tagging is required.
