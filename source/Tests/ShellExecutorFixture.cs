@@ -26,7 +26,7 @@ namespace Tests
         // Mimic the cancellation behaviour from LoggedTest in Octopus Server; we can't reference it in this assembly
         static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(45);
 
-        CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TestTimeout); // overwritten in SetUp
+        readonly CancellationTokenSource cancellationTokenSource = new(TestTimeout);
         CancellationToken CancellationToken => cancellationTokenSource.Token;
 
         [Fact]
@@ -109,7 +109,7 @@ namespace Tests
             errorMessages.ToString().Should().BeEmpty("no messages should be written to stderr");
         }
 
-        [PlatformSpecificFact(Platform.Windows)]
+        [WindowsFact]
         public void DebugLogging_ShouldContainDiagnosticsInfo_DifferentUser()
         {
             var user = new TestUserPrincipal(Username);
@@ -140,7 +140,7 @@ namespace Tests
             errorMessages.ToString().Should().BeEmpty("no messages should be written to stderr");
         }
 
-        [PlatformSpecificFact(Platform.Windows)]
+        [WindowsFact]
         public void RunningAsDifferentUser_ShouldCopySpecialEnvironmentVariables()
         {
             var user = new TestUserPrincipal(Username);
@@ -169,7 +169,7 @@ namespace Tests
             errorMessages.ToString().Should().BeEmpty("no messages should be written to stderr");
         }
 
-        [PlatformSpecificFact(Platform.Windows)]
+        [WindowsFact]
         public void RunningAsDifferentUser_ShouldWorkLotsOfTimes()
         {
             var user = new TestUserPrincipal(Username);
@@ -203,7 +203,7 @@ namespace Tests
             }
         }
 
-        [PlatformSpecificFact(Platform.Windows)]
+        [WindowsFact]
         public void RunningAsDifferentUser_CanWriteToItsOwnTempPath()
         {
             var user = new TestUserPrincipal(Username);
@@ -335,7 +335,7 @@ namespace Tests
             infoMessages.ToString().Should().ContainEquivalentOf($@"{Environment.UserName}");
         }
 
-        [PlatformSpecificTheory(Platform.Windows)]
+        [WindowsTheory]
         [InlineData("powershell.exe", "-command \"Write-Host $env:userdomain\\$env:username\"")]
         public void RunAsCurrentUser_PowerShell_ShouldWork(string command, string arguments)
         {
@@ -358,7 +358,7 @@ namespace Tests
             infoMessages.ToString().Should().ContainEquivalentOf($@"{Environment.UserDomainName}\{Environment.UserName}");
         }
 
-        [PlatformSpecificTheory(Platform.Windows)]
+        [WindowsTheory]
         [InlineData("cmd.exe", "/c \"echo %userdomain%\\%username%\"")]
         [InlineData("powershell.exe", "-command \"Write-Host $env:userdomain\\$env:username\"")]
         public void RunAsDifferentUser_ShouldWork(string command, string arguments)
