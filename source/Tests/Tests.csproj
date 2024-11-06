@@ -5,27 +5,30 @@
     <RootNamespace>Tests</RootNamespace>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <LangVersion>8</LangVersion>
+    <LangVersion>latest</LangVersion>
     <DisableImplicitPackageTargetFallback>true</DisableImplicitPackageTargetFallback>
   </PropertyGroup>
 
   <PropertyGroup Condition="!$([MSBuild]::IsOSUnixLike())">
-    <TargetFrameworks>net462;net6.0</TargetFrameworks>
+    <TargetFrameworks>net472;net8.0</TargetFrameworks>
   </PropertyGroup>
   <PropertyGroup Condition="$([MSBuild]::IsOSUnixLike())">
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.2.0" />
-    <PackageReference Include="nunit" Version="3.13.3" />
-    <PackageReference Include="NUnit3TestAdapter" Version="4.2.1" />
-    <PackageReference Include="TeamCity.VSTest.TestAdapter" Version="1.0.36" />
-    <PackageReference Include="Assent" Version="1.8.2" />
-    <PackageReference Include="FluentAssertions" Version="5.10.3" />
-    <PackageReference Include="FluentAssertions.Extensions" Version="1.0.18" />
-  </ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="TeamCity.VSTest.TestAdapter" Version="1.0.41" />
+    <PackageReference Include="FluentAssertions" Version="6.12.1" />
 
+    <!-- Assent 2.0+ requires .NET 6.0+; we cannot upgrade this unless we drop support for tests on netframework -->
+    <PackageReference Include="Assent" Version="1.9.3" /> 
+  </ItemGroup>
 
   <ItemGroup Condition=" '$(TargetFrameworkIdentifier)' == '.NETFramework' ">
     <Reference Include="System.DirectoryServices.AccountManagement" />

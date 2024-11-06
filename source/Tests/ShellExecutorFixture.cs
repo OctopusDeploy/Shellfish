@@ -5,15 +5,14 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using FluentAssertions;
-using NUnit.Framework;
 using Octopus.Shellfish;
 using Octopus.Shellfish.Plumbing;
 using Octopus.Shellfish.Windows;
 using Tests.Plumbing;
+using Xunit;
 
 namespace Tests
 {
-    [TestFixture]
     public class ShellExecutorFixture
     {
         // ReSharper disable InconsistentNaming
@@ -27,16 +26,10 @@ namespace Tests
         // Mimic the cancellation behaviour from LoggedTest in Octopus Server; we can't reference it in this assembly
         static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(45);
 
-        CancellationTokenSource cancellationTokenSource = null!; // overwritten in SetUp
+        readonly CancellationTokenSource cancellationTokenSource = new(TestTimeout);
         CancellationToken CancellationToken => cancellationTokenSource.Token;
 
-        [SetUp]
-        public void SetUp()
-        {
-            cancellationTokenSource = new CancellationTokenSource(TestTimeout);
-        }
-
-        [Test]
+        [Fact]
         public void ExitCode_ShouldBeReturned()
         {
             var arguments = $"{CommandParam} \"exit 99\"";
@@ -63,7 +56,7 @@ namespace Tests
             infoMessages.ToString().Should().BeEmpty("no messages should be written to stdout");
         }
 
-        [Test]
+        [Fact]
         public void DebugLogging_ShouldContainDiagnosticsInfo_ForDefault()
         {
             var arguments = $"{CommandParam} \"echo hello\"";
@@ -90,7 +83,7 @@ namespace Tests
             errorMessages.ToString().Should().BeEmpty("no messages should be written to stderr");
         }
 
-        [Test]
+        [Fact]
         public void RunningAsSameUser_ShouldCopySpecialEnvironmentVariables()
         {
             var arguments = $"{CommandParam} \"echo {EchoEnvironmentVariable("customenvironmentvariable")}\"";
@@ -116,8 +109,7 @@ namespace Tests
             errorMessages.ToString().Should().BeEmpty("no messages should be written to stderr");
         }
 
-        [Test]
-        [WindowsTest]
+        [WindowsFact]
         public void DebugLogging_ShouldContainDiagnosticsInfo_DifferentUser()
         {
             var user = new TestUserPrincipal(Username);
@@ -148,8 +140,7 @@ namespace Tests
             errorMessages.ToString().Should().BeEmpty("no messages should be written to stderr");
         }
 
-        [Test]
-        [WindowsTest]
+        [WindowsFact]
         public void RunningAsDifferentUser_ShouldCopySpecialEnvironmentVariables()
         {
             var user = new TestUserPrincipal(Username);
@@ -178,8 +169,7 @@ namespace Tests
             errorMessages.ToString().Should().BeEmpty("no messages should be written to stderr");
         }
 
-        [Test]
-        [WindowsTest]
+        [WindowsFact]
         public void RunningAsDifferentUser_ShouldWorkLotsOfTimes()
         {
             var user = new TestUserPrincipal(Username);
@@ -213,8 +203,7 @@ namespace Tests
             }
         }
 
-        [Test]
-        [WindowsTest]
+        [WindowsFact]
         public void RunningAsDifferentUser_CanWriteToItsOwnTempPath()
         {
             var user = new TestUserPrincipal(Username);
@@ -239,8 +228,7 @@ namespace Tests
             errorMessages.ToString().Should().BeEmpty("no messages should be written to stderr");
         }
 
-        [Test]
-        [Retry(3)]
+        [Fact]
         public void CancellationToken_ShouldForceKillTheProcess()
         {
             // Terminate the process after a very short time so the test doesn't run forever
@@ -275,7 +263,7 @@ namespace Tests
             errorMessages.ToString().Should().BeEmpty("no messages should be written to stderr");
         }
 
-        [Test]
+        [Fact]
         public void EchoHello_ShouldWriteToStdOut()
         {
             var arguments = $"{CommandParam} \"echo hello\"";
@@ -298,7 +286,7 @@ namespace Tests
             infoMessages.ToString().Should().ContainEquivalentOf("hello");
         }
 
-        [Test]
+        [Fact]
         public void EchoError_ShouldWriteToStdErr()
         {
             var arguments = $"{CommandParam} \"echo Something went wrong! 1>&2\"";
@@ -321,7 +309,7 @@ namespace Tests
             errorMessages.ToString().Should().ContainEquivalentOf("Something went wrong!");
         }
 
-        [Test]
+        [Fact]
         public void RunAsCurrentUser_ShouldWork()
         {
             var arguments = PlatformDetection.IsRunningOnWindows
@@ -346,9 +334,8 @@ namespace Tests
             infoMessages.ToString().Should().ContainEquivalentOf($@"{Environment.UserName}");
         }
 
-        [Test]
-        [WindowsTest]
-        [TestCase("powershell.exe", "-command \"Write-Host $env:userdomain\\$env:username\"")]
+        [WindowsTheory]
+        [InlineData("powershell.exe", "-command \"Write-Host $env:userdomain\\$env:username\"")]
         public void RunAsCurrentUser_PowerShell_ShouldWork(string command, string arguments)
         {
             var workingDirectory = "";
@@ -370,10 +357,9 @@ namespace Tests
             infoMessages.ToString().Should().ContainEquivalentOf($@"{Environment.UserDomainName}\{Environment.UserName}");
         }
 
-        [Test]
-        [WindowsTest]
-        [TestCase("cmd.exe", "/c \"echo %userdomain%\\%username%\"")]
-        [TestCase("powershell.exe", "-command \"Write-Host $env:userdomain\\$env:username\"")]
+        [WindowsTheory]
+        [InlineData("cmd.exe", "/c \"echo %userdomain%\\%username%\"")]
+        [InlineData("powershell.exe", "-command \"Write-Host $env:userdomain\\$env:username\"")]
         public void RunAsDifferentUser_ShouldWork(string command, string arguments)
         {
             var user = new TestUserPrincipal(Username);
