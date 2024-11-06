@@ -257,7 +257,7 @@ namespace Tests
             }
             else
             {
-                exitCode.Should().BeOneOf(SIG_KILL, SIG_TERM, 0);
+                exitCode.Should().BeOneOf(SIG_KILL, SIG_TERM, 0, -1);
             }
 
             errorMessages.ToString().Should().BeEmpty("no messages should be written to stderr");

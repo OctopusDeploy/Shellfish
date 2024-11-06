@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Octopus.Shellfish;
+
+using static ShellCommandExecutorHelpers;
 
 // This is the NEW shellfish API. It is currently under development
 public class ShellCommandExecutor
@@ -16,6 +17,15 @@ public class ShellCommandExecutor
     List<string>? commandLineArguments;
     string? rawCommandLineArguments;
     string? workingDirectory;
+    Dictionary<string, string>? environmentVariables;
+
+    // The legacy ShellExecutor would unconditionally kill the process upon cancellation.
+    // We keep that default as it is the safest option for compaitbility, but it can be changed
+    bool shouldKillProcessOnCancellation = true;
+
+    // The legacy ShellExecutor would not throw an OperationCanceledException if CancellationToken was signaled.
+    // This is a bit weird and not standard for .NET, but we keep it as the default for compatibility.
+    bool shouldSwallowCancellationException = true;
 
     List<IOutputTarget>? stdOutTargets;
     List<IOutputTarget>? stdErrTargets;
@@ -62,20 +72,36 @@ public class ShellCommandExecutor
         rawCommandLineArguments = rawArguments;
         return this;
     }
-
-    public ShellCommandExecutor CapturingStdOut()
+    
+    public ShellCommandExecutor WithEnvironmentVariables(Dictionary<string, string> dictionary)
     {
-        stdOutTargets ??= new List<IOutputTarget>();
-        if (stdOutTargets.Any(t => t is CapturedStringBuilderTarget)) return this; // already capturing
-        stdOutTargets.Add(new CapturedStringBuilderTarget());
+        environmentVariables = dictionary;
         return this;
     }
 
-    public ShellCommandExecutor CapturingStdErr()
+    public ShellCommandExecutor CaptureStdOutTo(StringBuilder stringBuilder)
+    {
+        stdOutTargets ??= new List<IOutputTarget>();
+        stdOutTargets.Add(new CapturedStringBuilderTarget(stringBuilder));
+        return this;
+    }
+
+    public ShellCommandExecutor CaptureStdErrTo(StringBuilder stringBuilder)
     {
         stdErrTargets ??= new List<IOutputTarget>();
-        if (stdErrTargets.Any(t => t is CapturedStringBuilderTarget)) return this; // already capturing
-        stdErrTargets.Add(new CapturedStringBuilderTarget());
+        stdErrTargets.Add(new CapturedStringBuilderTarget(stringBuilder));
+        return this;
+    }
+
+    public ShellCommandExecutor KillProcessOnCancellation(bool shouldKill = true)
+    {
+        shouldKillProcessOnCancellation = shouldKill;
+        return this;
+    }
+
+    public ShellCommandExecutor SwallowCancellationException(bool shouldSwallow = true)
+    {
+        shouldSwallowCancellationException = shouldSwallow;
         return this;
     }
 
@@ -88,7 +114,7 @@ public class ShellCommandExecutor
 
         if (rawCommandLineArguments is not null)
         {
-            process.StartInfo.Arguments = commandLinePrefixArgument is not null 
+            process.StartInfo.Arguments = commandLinePrefixArgument is not null
                 ? $"{commandLinePrefixArgument} {rawCommandLineArguments}"
                 : rawCommandLineArguments;
         }
@@ -117,12 +143,19 @@ public class ShellCommandExecutor
         if (workingDirectory is not null) process.StartInfo.WorkingDirectory = workingDirectory;
         process.StartInfo.UseShellExecute = false;
         process.StartInfo.CreateNoWindow = true;
+        
+        // Accessing the ProcessStartInfo.EnvironmentVariables dictionary will pre-load the environment variables for the current process
+        // Then we'll add/overwrite with the customEnvironmentVariables
+        if (environmentVariables is { Count: > 0 })
+        {
+            foreach (var kvp in environmentVariables)
+            {
+                process.StartInfo.EnvironmentVariables[kvp.Key] = kvp.Value;
+            }
+        }
 
         shouldBeginOutputRead = shouldBeginErrorRead = false;
-        if (stdOutTargets is
-            {
-                Count: > 0
-            })
+        if (stdOutTargets is { Count: > 0 })
         {
             process.StartInfo.RedirectStandardOutput = true;
             shouldBeginOutputRead = true;
@@ -180,13 +213,12 @@ public class ShellCommandExecutor
         {
             if (shouldBeginOutputRead) process.CancelOutputRead();
             if (shouldBeginErrorRead) process.CancelErrorRead();
-            throw;
+
+            if (shouldKillProcessOnCancellation) TryKillProcessAndChildrenRecursively(process);
+            if (!shouldSwallowCancellationException) throw;
         }
 
-        return new ShellCommandResult(
-            SafelyGetExitCode(process),
-            stdOutTargets?.OfType<CapturedStringBuilderTarget>().FirstOrDefault()?.StringBuilder,
-            stdErrTargets?.OfType<CapturedStringBuilderTarget>().FirstOrDefault()?.StringBuilder);
+        return new ShellCommandResult(SafelyGetExitCode(process));
     }
 
     public async Task<ShellCommandResult> ExecuteAsync(CancellationToken cancellationToken = default)
@@ -212,52 +244,12 @@ public class ShellCommandExecutor
         {
             if (shouldBeginOutputRead) process.CancelOutputRead();
             if (shouldBeginErrorRead) process.CancelErrorRead();
-            throw;
+
+            if (shouldKillProcessOnCancellation) TryKillProcessAndChildrenRecursively(process);
+            if (!shouldSwallowCancellationException) throw;
         }
 
-        return new ShellCommandResult(
-            SafelyGetExitCode(process),
-            stdOutTargets?.OfType<CapturedStringBuilderTarget>().FirstOrDefault()?.StringBuilder,
-            stdErrTargets?.OfType<CapturedStringBuilderTarget>().FirstOrDefault()?.StringBuilder);
-    }
-
-    static int SafelyGetExitCode(Process process)
-    {
-        try
-        {
-            return process.ExitCode;
-        }
-        catch (InvalidOperationException ex)
-            when (ex.Message is "No process is associated with this object." or "Process was not started by this object, so requested information cannot be determined.")
-        {
-            return -1;
-        }
-    }
-    
-    static Task WaitForExitInNewThread(Process process, CancellationToken cancellationToken)
-    {
-        var tcs = new TaskCompletionSource<bool>();
-
-        CancellationTokenRegistration registration = default;
-        registration = cancellationToken.Register(() =>
-        {
-            registration.Dispose();
-            tcs.TrySetCanceled();
-        });
-        
-        new Thread(() =>
-        {
-            try
-            {
-                process.WaitForExit();
-                tcs.TrySetResult(true);
-            }
-            catch (Exception e)
-            {
-                tcs.TrySetException(e);
-            }
-        }).Start();
-        return tcs.Task;
+        return new ShellCommandResult(SafelyGetExitCode(process));
     }
 
     interface IOutputTarget
@@ -265,10 +257,10 @@ public class ShellCommandExecutor
         void DataReceived(string? line);
     }
 
-    class CapturedStringBuilderTarget : IOutputTarget
+    class CapturedStringBuilderTarget(StringBuilder stringBuilder) : IOutputTarget
     {
-        public void DataReceived(string? line) => StringBuilder.AppendLine(line);
-
-        public StringBuilder StringBuilder { get; } = new();
+        readonly StringBuilder stringBuilder = stringBuilder;
+        
+        public void DataReceived(string? line) => stringBuilder.AppendLine(line);
     }
 }
