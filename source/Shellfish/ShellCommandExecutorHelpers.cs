@@ -10,7 +10,7 @@ namespace Octopus.Shellfish;
 
 public static class ShellCommandExecutorHelpers
 {
-    static readonly IXPlatAdapter XPlatAdapter = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+    internal static readonly IXPlatAdapter XPlatAdapter = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
         ? new WindowsAdapter()
         : new NixAdapter();
     

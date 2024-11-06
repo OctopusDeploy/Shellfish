@@ -122,7 +122,7 @@ namespace Octopus.Shellfish
                     if (runAs == null)
                         RunAsSameUser(process.StartInfo, customEnvironmentVariables);
                     else
-                        XPlatAdapter.RunAsDifferentUser(process.StartInfo, runAs, customEnvironmentVariables);
+                        XPlatAdapter.ConfigureStartInfoForUser(process.StartInfo, runAs, customEnvironmentVariables);
 
                     process.StartInfo.RedirectStandardOutput = true;
                     process.StartInfo.RedirectStandardError = true;
@@ -243,7 +243,7 @@ namespace Octopus.Shellfish
                     if (runAs == null)
                         RunAsSameUser(process.StartInfo, customEnvironmentVariables);
                     else
-                        XPlatAdapter.RunAsDifferentUser(process.StartInfo, runAs, customEnvironmentVariables);
+                        XPlatAdapter.ConfigureStartInfoForUser(process.StartInfo, runAs, customEnvironmentVariables);
 
                     process.Start();
                 }

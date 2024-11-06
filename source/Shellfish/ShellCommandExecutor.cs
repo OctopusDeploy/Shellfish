@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Net;
+using System.Runtime.Versioning;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Octopus.Shellfish.Windows;
 
 namespace Octopus.Shellfish;
 
@@ -18,6 +21,7 @@ public class ShellCommandExecutor
     string? rawCommandLineArguments;
     string? workingDirectory;
     Dictionary<string, string>? environmentVariables;
+    NetworkCredential? windowsCredential;
 
     // The legacy ShellExecutor would unconditionally kill the process upon cancellation.
     // We keep that default as it is the safest option for compaitbility, but it can be changed
@@ -76,6 +80,16 @@ public class ShellCommandExecutor
     public ShellCommandExecutor WithEnvironmentVariables(Dictionary<string, string> dictionary)
     {
         environmentVariables = dictionary;
+        return this;
+    }
+    
+#if NET5_0_OR_GREATER
+    [SupportedOSPlatform("Windows")]
+#endif
+    public ShellCommandExecutor RunAsUser(NetworkCredential credential)
+    {
+        // Note: "RunAsUser" name is generic because we could expand this to support unix in future. Right now it's just windows.
+        windowsCredential = credential;
         return this;
     }
 
@@ -143,14 +157,21 @@ public class ShellCommandExecutor
         if (workingDirectory is not null) process.StartInfo.WorkingDirectory = workingDirectory;
         process.StartInfo.UseShellExecute = false;
         process.StartInfo.CreateNoWindow = true;
-        
-        // Accessing the ProcessStartInfo.EnvironmentVariables dictionary will pre-load the environment variables for the current process
-        // Then we'll add/overwrite with the customEnvironmentVariables
-        if (environmentVariables is { Count: > 0 })
+
+        if (windowsCredential is not null)
         {
-            foreach (var kvp in environmentVariables)
+            XPlatAdapter.ConfigureStartInfoForUser(process.StartInfo, windowsCredential, environmentVariables);
+        }
+        else // exec as the current user
+        {
+            // Accessing the ProcessStartInfo.EnvironmentVariables dictionary will pre-load the environment variables for the current process
+            // Then we'll add/overwrite with the customEnvironmentVariables
+            if (environmentVariables is { Count: > 0 })
             {
-                process.StartInfo.EnvironmentVariables[kvp.Key] = kvp.Value;
+                foreach (var kvp in environmentVariables)
+                {
+                    process.StartInfo.EnvironmentVariables[kvp.Key] = kvp.Value;
+                }
             }
         }
 

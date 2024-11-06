@@ -15,7 +15,7 @@ namespace Octopus.Shellfish.Windows
 #endif
     class WindowsAdapter : IXPlatAdapter
     {
-        public void RunAsDifferentUser(ProcessStartInfo startInfo, NetworkCredential runAs, IDictionary<string, string>? customEnvironmentVariables)
+        public void ConfigureStartInfoForUser(ProcessStartInfo startInfo, NetworkCredential runAs, IDictionary<string, string>? customEnvironmentVariables)
         {
 #pragma warning disable PC001 // API not supported on all platforms
 #pragma warning disable CA1416 // This call site is reachable on all platforms.

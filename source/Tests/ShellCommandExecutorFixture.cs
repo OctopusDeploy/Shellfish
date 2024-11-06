@@ -14,24 +14,18 @@ using Xunit;
 
 namespace Tests;
 
+// Cross-platform tests for ShellCommandExecutor
 public class ShellCommandExecutorFixture
 {
-    public enum SyncBehaviour
-    {
-        Sync,
-        Async
-    }
-
     // ReSharper disable InconsistentNaming
     const int SIG_TERM = 143;
     const int SIG_KILL = 137;
-    const string Username = "test-shellexecutor";
 
     static readonly string Command = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "cmd.exe" : "bash";
     static readonly string CommandParam = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "/c" : "-c";
 
     // Mimic the cancellation behaviour from LoggedTest in Octopus Server; we can't reference it in this assembly
-    static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(45);
+    public static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(45);
 
     readonly CancellationTokenSource cancellationTokenSource = new(TestTimeout);
     CancellationToken CancellationToken => cancellationTokenSource.Token;
@@ -84,94 +78,6 @@ public class ShellCommandExecutorFixture
         stdOut.ToString().Should().ContainEquivalentOf("customvalue", "the environment variable should have been copied to the child process");
     }
     
-    // [WindowsFact]
-    // public void RunningAsDifferentUser_ShouldCopySpecialEnvironmentVariables()
-    // {
-    //     var user = new TestUserPrincipal(Username);
-    //
-    //     var arguments = $"{CommandParam} \"echo {EchoEnvironmentVariable("customenvironmentvariable")}\"";
-    //     // Target the CommonApplicationData folder since this is a place the particular user can get to
-    //     var workingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-    //     var networkCredential = user.GetCredential();
-    //     var customEnvironmentVariables = new Dictionary<string, string>
-    //     {
-    //         { "customenvironmentvariable", "customvalue" }
-    //     };
-    //
-    //     var exitCode = Execute(Command,
-    //         arguments,
-    //         workingDirectory,
-    //         out _,
-    //         out var infoMessages,
-    //         out var errorMessages,
-    //         networkCredential,
-    //         customEnvironmentVariables,
-    //         CancellationToken);
-    //
-    //     exitCode.Should().Be(0, "the process should have run to completion");
-    //     infoMessages.ToString().Should().ContainEquivalentOf("customvalue", "the environment variable should have been copied to the child process");
-    //     errorMessages.ToString().Should().BeEmpty("no messages should be written to stderr");
-    // }
-    //
-    // [WindowsFact]
-    // public void RunningAsDifferentUser_ShouldWorkLotsOfTimes()
-    // {
-    //     var user = new TestUserPrincipal(Username);
-    //
-    //     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(240));
-    //
-    //     for (var i = 0; i < 20; i++)
-    //     {
-    //         var arguments = $"{CommandParam} \"echo {EchoEnvironmentVariable("customenvironmentvariable")}%\"";
-    //         // Target the CommonApplicationData folder since this is a place the particular user can get to
-    //         var workingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-    //         var networkCredential = user.GetCredential();
-    //         var customEnvironmentVariables = new Dictionary<string, string>
-    //         {
-    //             { "customenvironmentvariable", $"customvalue-{i}" }
-    //         };
-    //
-    //         var exitCode = Execute(Command,
-    //             arguments,
-    //             workingDirectory,
-    //             out _,
-    //             out var infoMessages,
-    //             out var errorMessages,
-    //             networkCredential,
-    //             customEnvironmentVariables,
-    //             cts.Token);
-    //
-    //         exitCode.Should().Be(0, "the process should have run to completion");
-    //         infoMessages.ToString().Should().ContainEquivalentOf($"customvalue-{i}", "the environment variable should have been copied to the child process");
-    //         errorMessages.ToString().Should().BeEmpty("no messages should be written to stderr");
-    //     }
-    // }
-    //
-    // [WindowsFact]
-    // public void RunningAsDifferentUser_CanWriteToItsOwnTempPath()
-    // {
-    //     var user = new TestUserPrincipal(Username);
-    //
-    //     var arguments = $"{CommandParam} \"echo hello > %temp%hello.txt\"";
-    //     // Target the CommonApplicationData folder since this is a place the particular user can get to
-    //     var workingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-    //     var networkCredential = user.GetCredential();
-    //     var customEnvironmentVariables = new Dictionary<string, string>();
-    //
-    //     var exitCode = Execute(Command,
-    //         arguments,
-    //         workingDirectory,
-    //         out _,
-    //         out _,
-    //         out var errorMessages,
-    //         networkCredential,
-    //         customEnvironmentVariables,
-    //         CancellationToken);
-    //
-    //     exitCode.Should().Be(0, "the process should have run to completion after writing to the temp folder for the other user");
-    //     errorMessages.ToString().Should().BeEmpty("no messages should be written to stderr");
-    // }
-
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
     public async Task CancellationToken_ShouldForceKillTheProcess(SyncBehaviour behaviour)
     {
@@ -272,58 +178,6 @@ public class ShellCommandExecutorFixture
         stdOut.ToString().Should().ContainEquivalentOf($@"{Environment.UserName}");
     }
 
-    [WindowsTheory]
-    [InlineData("cmd.exe", "/c \"echo %userdomain%\\%username%\"", SyncBehaviour.Sync)]
-    [InlineData("cmd.exe", "/c \"echo %userdomain%\\%username%\"", SyncBehaviour.Async)]
-    [InlineData("powershell.exe", "-command \"Write-Host $env:userdomain\\$env:username\"", SyncBehaviour.Sync)]
-    [InlineData("powershell.exe", "-command \"Write-Host $env:userdomain\\$env:username\"", SyncBehaviour.Async)]
-    public async Task RunAsCurrentUser_CmdAndPowerShell_ShouldWork(string command, string arguments, SyncBehaviour behaviour)
-    {
-        var stdOut = new StringBuilder();
-        var stdErr = new StringBuilder();
-
-        var executor = new ShellCommandExecutor()
-            .WithExecutable(command)
-            .WithRawArguments(arguments)
-            .CaptureStdOutTo(stdOut)
-            .CaptureStdErrTo(stdErr);
-
-        var result = behaviour == SyncBehaviour.Async
-            ? await executor.ExecuteAsync(CancellationToken)
-            : executor.Execute(CancellationToken);
-
-        result.ExitCode.Should().Be(0, "the process should have run to completion");
-        stdErr.ToString().Should().Be(Environment.NewLine, "no messages should be written to stderr");
-        stdOut.ToString().Should().ContainEquivalentOf($@"{Environment.UserDomainName}\{Environment.UserName}");
-    }
-    
-    // [WindowsTheory]
-    // [InlineData("cmd.exe", "/c \"echo %userdomain%\\%username%\"")]
-    // [InlineData("powershell.exe", "-command \"Write-Host $env:userdomain\\$env:username\"")]
-    // public void RunAsDifferentUser_ShouldWork(string command, string arguments)
-    // {
-    //     var user = new TestUserPrincipal(Username);
-    //
-    //     // Target the CommonApplicationData folder since this is a place the particular user can get to
-    //     var workingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-    //     var networkCredential = user.GetCredential();
-    //     var customEnvironmentVariables = new Dictionary<string, string>();
-    //
-    //     var exitCode = Execute(command,
-    //         arguments,
-    //         workingDirectory,
-    //         out _,
-    //         out var infoMessages,
-    //         out var errorMessages,
-    //         networkCredential,
-    //         customEnvironmentVariables,
-    //         CancellationToken);
-    //
-    //     exitCode.Should().Be(0, "the process should have run to completion");
-    //     errorMessages.ToString().Should().BeEmpty("no messages should be written to stderr");
-    //     infoMessages.ToString().Should().ContainEquivalentOf($@"{user.DomainName}\{user.UserName}");
-    // }
-    //
     static string EchoEnvironmentVariable(string varName)
         => RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? $"%{varName}%" : $"${varName}";
 }
