@@ -51,8 +51,8 @@ public class ShellCommandExecutorFixture
         result.ExitCode.Should().Be(99, "our custom exit code should be reflected");
 
         // we're executing cmd.exe which writes a newline to stdout and stderr
-        stdOut.ToString().Should().Be(Environment.NewLine, "no messages should be written to stdout");
-        stdErr.ToString().Should().Be(Environment.NewLine, "no messages should be written to stderr");
+        stdOut.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stdout");
+        stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
     }
 
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -76,8 +76,8 @@ public class ShellCommandExecutorFixture
             : executor.Execute(CancellationToken);
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
-        stdErr.ToString().Should().Be(Environment.NewLine, "no messages should be written to stderr");
-        stdOut.ToString().Should().ContainEquivalentOf("customvalue", "the environment variable should have been copied to the child process");
+        stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty(Environment.NewLine, "no messages should be written to stderr");
+        stdOut.ToStringWithoutTrailingWhitespace().Should().ContainEquivalentOf("customvalue", "the environment variable should have been copied to the child process");
     }
 
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -110,7 +110,7 @@ public class ShellCommandExecutorFixture
             exitCode.Should().BeOneOf(SIG_KILL, SIG_TERM, 0, -1);
         }
 
-        stdErr.ToString().Should().Be(string.Empty, "no messages should be written to stderr, and the process was terminated before the trailing newline got there");
+        stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr, and the process was terminated before the trailing newline got there");
     }
 
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -130,8 +130,8 @@ public class ShellCommandExecutorFixture
             : executor.Execute(CancellationToken);
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
-        stdErr.ToString().Should().Be(Environment.NewLine, "no messages should be written to stderr");
-        stdOut.ToString().Should().ContainEquivalentOf("hello");
+        stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
+        stdOut.ToStringWithoutTrailingWhitespace().Should().ContainEquivalentOf("hello");
     }
 
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -151,8 +151,8 @@ public class ShellCommandExecutorFixture
             : executor.Execute(CancellationToken);
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
-        stdOut.ToString().Should().Be(Environment.NewLine, "no messages should be written to stdout");
-        stdErr.ToString().Should().ContainEquivalentOf("Something went wrong!");
+        stdOut.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stdout");
+        stdErr.ToStringWithoutTrailingWhitespace().Should().ContainEquivalentOf("Something went wrong!");
     }
 
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -176,8 +176,8 @@ public class ShellCommandExecutorFixture
             : executor.Execute(CancellationToken);
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
-        stdErr.ToString().Should().Be(Environment.NewLine, "no messages should be written to stderr");
-        stdOut.ToString().Should().ContainEquivalentOf($@"{Environment.UserName}");
+        stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
+        stdOut.ToStringWithoutTrailingWhitespace().Should().ContainEquivalentOf($@"{Environment.UserName}");
     }
 
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -197,8 +197,8 @@ public class ShellCommandExecutorFixture
             : executor.Execute(CancellationToken);
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
-        stdErr.ToString().Should().Be(Environment.NewLine, "no messages should be written to stderr");
-        stdOut.ToString().Should().ContainEquivalentOf("hello");
+        stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
+        stdOut.ToStringWithoutTrailingWhitespace().Should().ContainEquivalentOf("hello");
     }
 
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -235,19 +235,17 @@ public class ShellCommandExecutorFixture
                 : executor.Execute(CancellationToken);
             
             result.ExitCode.Should().Be(0, "the process should have run to completion");
-            stdErr.ToString().Should().Be(Environment.NewLine, "no messages should be written to stderr");
+            stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
             
             var expectedQuotedValue = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) 
                 ? "--thing=\\\"quotedValue\\\"" // on windows echo adds extra quoting; this is an artifact of cmd.exe not our code 
                 : "--thing=\"quotedValue\"";
             
-            stdOut.ToString().Should().Be(string.Join(Environment.NewLine, [
+            stdOut.ToStringWithoutTrailingWhitespace().Should().Be(string.Join(Environment.NewLine, [
                 "apple",
                 "banana split", // spaces should be preserved
                 expectedQuotedValue,
-                "cherry",
-                "", 
-                "" // there are two trailing newlines at the end because cmd.exe and bash do this for some reason
+                "cherry"
             ]));
         }
         finally

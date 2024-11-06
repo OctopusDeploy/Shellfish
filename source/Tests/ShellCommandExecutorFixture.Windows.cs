@@ -81,8 +81,8 @@ public class ShellCommandExecutorFixtureWindows(ShellCommandExecutorFixtureWindo
             : executor.Execute(CancellationToken);
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
-        stdErr.ToString().Should().Be(Environment.NewLine, "no messages should be written to stderr");
-        stdOut.ToString().Should().ContainEquivalentOf($@"{user.DomainName}\{user.UserName}");
+        stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
+        stdOut.ToStringWithoutTrailingWhitespace().Should().ContainEquivalentOf($@"{user.DomainName}\{user.UserName}");
     }
 
     [WindowsTheory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -107,8 +107,8 @@ public class ShellCommandExecutorFixtureWindows(ShellCommandExecutorFixtureWindo
             : executor.Execute(CancellationToken);
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
-        stdErr.ToString().Should().Be(Environment.NewLine, "no messages should be written to stderr");
-        stdOut.ToString().Should().ContainEquivalentOf("customvalue", "the environment variable should have been copied to the child process");
+        stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
+        stdOut.ToStringWithoutTrailingWhitespace().Should().ContainEquivalentOf("customvalue", "the environment variable should have been copied to the child process");
     }
 
     [WindowsTheory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -141,8 +141,8 @@ public class ShellCommandExecutorFixtureWindows(ShellCommandExecutorFixtureWindo
                 : executor.Execute(CancellationToken);
 
             result.ExitCode.Should().Be(0, "the process should have run to completion");
-            stdOut.ToString().Should().ContainEquivalentOf($"customvalue-{i}", "the environment variable should have been copied to the child process");
-            stdErr.ToString().Should().Be(Environment.NewLine, "no messages should be written to stderr");
+            stdOut.ToStringWithoutTrailingWhitespace().Should().ContainEquivalentOf($"customvalue-{i}", "the environment variable should have been copied to the child process");
+            stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
         }
     }
 
@@ -167,8 +167,8 @@ public class ShellCommandExecutorFixtureWindows(ShellCommandExecutorFixtureWindo
             : executor.Execute(CancellationToken);
 
         result.ExitCode.Should().Be(0, "the process should have run to completion after writing to the temp folder for the other user");
-        stdErr.ToString().Should().Be(Environment.NewLine, "no messages should be written to stderr");
-        stdOut.ToString().Should().Contain(uniqueString);
+        stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
+        stdOut.ToStringWithoutTrailingWhitespace().Should().Contain(uniqueString);
     }
 
     static string EchoEnvironmentVariable(string varName) => $"%{varName}%";
