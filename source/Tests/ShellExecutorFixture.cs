@@ -229,7 +229,6 @@ namespace Tests
         }
 
         [Fact]
-        // [Retry(3)] TODO retry with polly or something
         public void CancellationToken_ShouldForceKillTheProcess()
         {
             // Terminate the process after a very short time so the test doesn't run forever
