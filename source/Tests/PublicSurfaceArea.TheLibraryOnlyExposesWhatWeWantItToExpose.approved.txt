@@ -4,7 +4,7 @@ Octopus.Shellfish.ShellCommandExecutor.WithDotNetExecutable
 Octopus.Shellfish.ShellCommandExecutor.WithArguments
 Octopus.Shellfish.ShellCommandExecutor.WithRawArguments
 Octopus.Shellfish.ShellCommandExecutor.WithEnvironmentVariables
-Octopus.Shellfish.ShellCommandExecutor.AsWindowsUser
+Octopus.Shellfish.ShellCommandExecutor.RunAsUser
 Octopus.Shellfish.ShellCommandExecutor.CaptureStdOutTo
 Octopus.Shellfish.ShellCommandExecutor.CaptureStdErrTo
 Octopus.Shellfish.ShellCommandExecutor.KillProcessOnCancellation

@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using FluentAssertions.Execution;
 using Octopus.Shellfish;
 using Tests.Plumbing;
 using Xunit;
@@ -41,7 +43,7 @@ public class ShellCommandExecutorFixture
             .WithRawArguments($"{CommandParam} \"exit 99\"")
             .CaptureStdOutTo(stdOut)
             .CaptureStdErrTo(stdErr);
-        
+
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(CancellationToken)
             : executor.Execute(CancellationToken);
@@ -68,7 +70,7 @@ public class ShellCommandExecutorFixture
             })
             .CaptureStdOutTo(stdOut)
             .CaptureStdErrTo(stdErr);
-        
+
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(CancellationToken)
             : executor.Execute(CancellationToken);
@@ -77,7 +79,7 @@ public class ShellCommandExecutorFixture
         stdErr.ToString().Should().Be(Environment.NewLine, "no messages should be written to stderr");
         stdOut.ToString().Should().ContainEquivalentOf("customvalue", "the environment variable should have been copied to the child process");
     }
-    
+
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
     public async Task CancellationToken_ShouldForceKillTheProcess(SyncBehaviour behaviour)
     {
@@ -91,7 +93,7 @@ public class ShellCommandExecutorFixture
             .WithExecutable(Command)
             .CaptureStdOutTo(stdOut)
             .CaptureStdErrTo(stdErr);
-            
+
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(cts.Token)
             : executor.Execute(cts.Token);
@@ -122,7 +124,7 @@ public class ShellCommandExecutorFixture
             .WithRawArguments($"{CommandParam} \"echo hello\"")
             .CaptureStdOutTo(stdOut)
             .CaptureStdErrTo(stdErr);
-        
+
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(CancellationToken)
             : executor.Execute(CancellationToken);
@@ -143,7 +145,7 @@ public class ShellCommandExecutorFixture
             .WithRawArguments($"{CommandParam} \"echo Something went wrong! 1>&2\"")
             .CaptureStdOutTo(stdOut)
             .CaptureStdErrTo(stdErr);
-        
+
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(CancellationToken)
             : executor.Execute(CancellationToken);
@@ -178,6 +180,120 @@ public class ShellCommandExecutorFixture
         stdOut.ToString().Should().ContainEquivalentOf($@"{Environment.UserName}");
     }
 
+    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    public async Task ArgumentArrayHandlingShouldBeConsistentWithRawArgumsnts(SyncBehaviour behaviour)
+    {
+        var stdOut = new StringBuilder();
+        var stdErr = new StringBuilder();
+
+        var executor = new ShellCommandExecutor()
+            .WithExecutable(Command)
+            .WithArguments(CommandParam, "echo hello")
+            .CaptureStdOutTo(stdOut)
+            .CaptureStdErrTo(stdErr);
+
+        var result = behaviour == SyncBehaviour.Async
+            ? await executor.ExecuteAsync(CancellationToken)
+            : executor.Execute(CancellationToken);
+
+        result.ExitCode.Should().Be(0, "the process should have run to completion");
+        stdErr.ToString().Should().Be(Environment.NewLine, "no messages should be written to stderr");
+        stdOut.ToString().Should().ContainEquivalentOf("hello");
+    }
+
+    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    public async Task ArgumentArrayHandlingShouldBeCorrect(SyncBehaviour behaviour)
+    {
+        using var assertionScope = new AssertionScope();
+        var tempScript = CreateScriptWhichEchoesBackArguments();
+        try
+        {
+            var stdOut = new StringBuilder();
+            var stdErr = new StringBuilder();
+
+            string[] inputArgs =
+            [
+                "apple",
+                "banana split",
+                "--thing=\"quotedValue\"",
+                "cherry"
+            ];
+            
+            // when running cmd.exe we need /c to tell it to run the script; bash doesn't want any preamble for a script file
+            string[] invocation = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? ["/c", tempScript]
+                : [tempScript];
+
+            var executor = new ShellCommandExecutor()
+                .WithExecutable(Command)
+                .WithArguments([..invocation, ..inputArgs])
+                .CaptureStdOutTo(stdOut)
+                .CaptureStdErrTo(stdErr);
+
+            var result = behaviour == SyncBehaviour.Async
+                ? await executor.ExecuteAsync(CancellationToken)
+                : executor.Execute(CancellationToken);
+            
+            result.ExitCode.Should().Be(0, "the process should have run to completion");
+            stdErr.ToString().Should().Be(Environment.NewLine, "no messages should be written to stderr");
+            
+            var expectedQuotedValue = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) 
+                ? "--thing=\\\"quotedValue\\\"" // on windows echo adds extra quoting; this is an artifact of cmd.exe not our code 
+                : "--thing=\"quotedValue\"";
+            
+            stdOut.ToString().Should().Be(string.Join(Environment.NewLine, [
+                "apple",
+                "banana split", // spaces should be preserved
+                expectedQuotedValue,
+                "cherry",
+                "", 
+                "" // there are two trailing newlines at the end because cmd.exe and bash do this for some reason
+            ]));
+        }
+        finally
+        {
+            try
+            {
+                File.Delete(tempScript);
+            }
+            catch
+            {
+                // nothing to do if we can't delete the temp file
+            }
+        }
+    }
+
     static string EchoEnvironmentVariable(string varName)
         => RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? $"%{varName}%" : $"${varName}";
+
+    // Creates a script (.cmd or .sh) in the temp directory which echoes back its given command line arguments,
+    // each on a newline, so we can use this to test how arguments are passed to the shell.
+    // This function returns the path to the temporary script file.
+    static string CreateScriptWhichEchoesBackArguments()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".cmd");
+            File.WriteAllText(tempFile,
+                """
+                @echo off
+                setlocal enabledelayedexpansion
+                for %%A in (%*) do (
+                    echo %%~A
+                )
+                """);
+            return tempFile;
+        }
+        else
+        {
+            var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sh");
+            File.WriteAllText(tempFile,
+                """
+                for arg in "$@"; do
+                    echo "$arg"
+                done
+                """.Replace("\r\n", "\n"));
+            return tempFile;
+        }
+    }
 }
