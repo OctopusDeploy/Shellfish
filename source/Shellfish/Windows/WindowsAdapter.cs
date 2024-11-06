@@ -5,10 +5,14 @@ using System.Linq;
 using System.Management;
 using System.Net;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Text;
 
 namespace Octopus.Shellfish.Windows
 {
+#if NET5_0_OR_GREATER
+    [SupportedOSPlatform("Windows")]
+#endif
     class WindowsAdapter : IXPlatAdapter
     {
         public void RunAsDifferentUser(ProcessStartInfo startInfo, NetworkCredential runAs, IDictionary<string, string>? customEnvironmentVariables)

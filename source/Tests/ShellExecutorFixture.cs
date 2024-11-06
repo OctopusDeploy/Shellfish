@@ -20,8 +20,8 @@ namespace Tests
         const int SIG_KILL = 137;
         const string Username = "test-shellexecutor";
 
-        static readonly string Command = PlatformDetection.IsRunningOnWindows ? "cmd.exe" : "bash";
-        static readonly string CommandParam = PlatformDetection.IsRunningOnWindows ? "/c" : "-c";
+        static readonly string Command = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "cmd.exe" : "bash";
+        static readonly string CommandParam = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "/c" : "-c";
 
         // Mimic the cancellation behaviour from LoggedTest in Octopus Server; we can't reference it in this assembly
         static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(45);
@@ -250,7 +250,7 @@ namespace Tests
                 customEnvironmentVariables,
                 cts.Token);
 
-            if (PlatformDetection.IsRunningOnWindows)
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 exitCode.Should().BeLessOrEqualTo(0, "the process should have been terminated");
                 infoMessages.ToString().Should().ContainEquivalentOf("Microsoft Windows", "the default command-line header would be written to stdout");
@@ -312,7 +312,7 @@ namespace Tests
         [Fact]
         public void RunAsCurrentUser_ShouldWork()
         {
-            var arguments = PlatformDetection.IsRunningOnWindows
+            var arguments = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
                 ? $"{CommandParam} \"echo {EchoEnvironmentVariable("username")}\""
                 : $"{CommandParam} \"whoami\"";
             var workingDirectory = "";
@@ -385,7 +385,7 @@ namespace Tests
         }
 
         static string EchoEnvironmentVariable(string varName)
-            => PlatformDetection.IsRunningOnWindows ? $"%{varName}%" : $"${varName}";
+            => RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? $"%{varName}%" : $"${varName}";
 
         static int Execute(
             string command,
