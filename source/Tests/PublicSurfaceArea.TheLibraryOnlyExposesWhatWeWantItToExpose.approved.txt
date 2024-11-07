@@ -1,7 +1,6 @@
-Octopus.Shellfish.ShellCommand.WithExecutable
 Octopus.Shellfish.ShellCommand.WithWorkingDirectory
-Octopus.Shellfish.ShellCommand.WithDotNetExecutable
 Octopus.Shellfish.ShellCommand.WithArguments
+Octopus.Shellfish.ShellCommand.BeforeStartHook
 Octopus.Shellfish.ShellCommand.WithRawArguments
 Octopus.Shellfish.ShellCommand.WithEnvironmentVariables
 Octopus.Shellfish.ShellCommand.RunAsUser
@@ -12,6 +11,7 @@ Octopus.Shellfish.ShellCommand.KillProcessOnCancellation
 Octopus.Shellfish.ShellCommand.SwallowCancellationException
 Octopus.Shellfish.ShellCommand.Execute
 Octopus.Shellfish.ShellCommand.ExecuteAsync
+Octopus.Shellfish.ShellCommandExtensionMethods.ExecutableCanBeDotnetDll
 Octopus.Shellfish.ShellCommandResult.ExitCode
 Octopus.Shellfish.ShellExecutionException.Errors
 Octopus.Shellfish.ShellExecutionException.Message

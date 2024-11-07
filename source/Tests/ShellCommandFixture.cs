@@ -38,8 +38,7 @@ public class ShellCommandFixture
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
-        var executor = new ShellCommand()
-            .WithExecutable(Command)
+        var executor = new ShellCommand(Command)
             .WithRawArguments($"{CommandParam} \"exit 99\"")
             .CaptureStdOutTo(stdOut)
             .CaptureStdErrTo(stdErr);
@@ -61,8 +60,7 @@ public class ShellCommandFixture
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
-        var executor = new ShellCommand()
-            .WithExecutable(Command)
+        var executor = new ShellCommand(Command)
             .WithRawArguments($"{CommandParam} \"echo {EchoEnvironmentVariable("customenvironmentvariable")}\"")
             .WithEnvironmentVariables(new Dictionary<string, string>
             {
@@ -89,8 +87,7 @@ public class ShellCommandFixture
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
         // Starting a new instance of cmd.exe will run indefinitely waiting for user input
-        var executor = new ShellCommand()
-            .WithExecutable(Command)
+        var executor = new ShellCommand(Command)
             .CaptureStdOutTo(stdOut)
             .CaptureStdErrTo(stdErr);
 
@@ -119,8 +116,7 @@ public class ShellCommandFixture
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
-        var executor = new ShellCommand()
-            .WithExecutable(Command)
+        var executor = new ShellCommand(Command)
             .WithRawArguments($"{CommandParam} \"echo hello\"")
             .CaptureStdOutTo(stdOut)
             .CaptureStdErrTo(stdErr);
@@ -140,8 +136,7 @@ public class ShellCommandFixture
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
-        var executor = new ShellCommand()
-            .WithExecutable(Command)
+        var executor = new ShellCommand(Command)
             .WithRawArguments($"{CommandParam} \"echo Something went wrong! 1>&2\"")
             .CaptureStdOutTo(stdOut)
             .CaptureStdErrTo(stdErr);
@@ -165,8 +160,7 @@ public class ShellCommandFixture
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
-        var executor = new ShellCommand()
-            .WithExecutable(Command)
+        var executor = new ShellCommand(Command)
             .WithRawArguments(arguments)
             .CaptureStdOutTo(stdOut)
             .CaptureStdErrTo(stdErr);
@@ -186,8 +180,7 @@ public class ShellCommandFixture
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
-        var executor = new ShellCommand()
-            .WithExecutable(Command)
+        var executor = new ShellCommand(Command)
             .WithArguments(CommandParam, "echo hello")
             .CaptureStdOutTo(stdOut)
             .CaptureStdErrTo(stdErr);
@@ -224,8 +217,7 @@ public class ShellCommandFixture
                 ? ["/c", tempScript]
                 : [tempScript];
 
-            var executor = new ShellCommand()
-                .WithExecutable(Command)
+            var executor = new ShellCommand(Command)
                 .WithArguments([..invocation, ..inputArgs])
                 .CaptureStdOutTo(stdOut)
                 .CaptureStdErrTo(stdErr);
@@ -259,6 +251,40 @@ public class ShellCommandFixture
                 // nothing to do if we can't delete the temp file
             }
         }
+    }
+    
+    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    public async Task BeforeStartHooksRunInRegistrationOrder(SyncBehaviour behaviour)
+    {
+        var stdOut = new StringBuilder();
+        var stdErr = new StringBuilder();
+
+        var capturedArguments = new List<string>();
+        
+        var executor = new ShellCommand(Command)
+            .BeforeStartHook(process =>
+            {
+                // this hook modifies the arguments
+                process.StartInfo.Arguments = process.StartInfo.Arguments.Replace("hello", "OLLEH");
+            })
+            .BeforeStartHook(process =>
+            {
+                // this hook doesn't modify anything, it just captures values so we can assert on them
+                capturedArguments.Add(process.StartInfo.Arguments);
+            })
+            .WithRawArguments($"{CommandParam} \"echo hello\"")
+            .CaptureStdOutTo(stdOut)
+            .CaptureStdErrTo(stdErr);
+
+        var result = behaviour == SyncBehaviour.Async
+            ? await executor.ExecuteAsync(CancellationToken)
+            : executor.Execute(CancellationToken);
+
+        capturedArguments.Should().Equal($"{CommandParam} \"echo OLLEH\"");
+
+        result.ExitCode.Should().Be(0, "the process should have run to completion");
+        stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
+        stdOut.ToStringWithoutTrailingWhitespace().Should().Contain("OLLEH");
     }
 
     static string EchoEnvironmentVariable(string varName)

@@ -6,23 +6,22 @@ using System.Runtime.Versioning;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Octopus.Shellfish.Windows;
 
 namespace Octopus.Shellfish;
 
 using static ShellCommandExecutorHelpers;
 
 // This is the NEW shellfish API. It is currently under development
-public class ShellCommand
+public class ShellCommand(string executable)
 {
-    string? executable;
-    string? commandLinePrefixArgument; // special case to allow WithDotNetExecutable to work
+    readonly string executable = executable;
     List<string>? commandLineArguments;
     string? rawCommandLineArguments;
     string? workingDirectory;
     Dictionary<string, string>? environmentVariables;
     NetworkCredential? windowsCredential;
     Encoding? outputEncoding;
+    List<Action<Process>>? beforeStartHooks;
 
     // The legacy ShellExecutor would unconditionally kill the process upon cancellation.
     // We keep that default as it is the safest option for compaitbility, but it can be changed
@@ -31,33 +30,13 @@ public class ShellCommand
     // The legacy ShellExecutor would not throw an OperationCanceledException if CancellationToken was signaled.
     // This is a bit weird and not standard for .NET, but we keep it as the default for compatibility.
     bool shouldSwallowCancellationException = true;
-    
 
     List<IOutputTarget>? stdOutTargets;
     List<IOutputTarget>? stdErrTargets;
 
-    public ShellCommand WithExecutable(string exe)
-    {
-        executable = exe;
-        return this;
-    }
-
     public ShellCommand WithWorkingDirectory(string workingDir)
     {
         workingDirectory = workingDir;
-        return this;
-    }
-
-    // Configures the runner to launch the specified executable if it is a .exe, or to launch the specified .dll using dotnet.exe if it is a .dll.
-    // assumes "dotnet" is in the PATH somewhere
-    public ShellCommand WithDotNetExecutable(string exeOrDll)
-    {
-        if (exeOrDll.EndsWith(".dll"))
-        {
-            commandLinePrefixArgument = exeOrDll;
-            executable = "dotnet";
-        }
-
         return this;
     }
 
@@ -66,6 +45,17 @@ public class ShellCommand
         commandLineArguments ??= new List<string>();
         commandLineArguments.Clear();
         commandLineArguments.AddRange(arguments);
+        return this;
+    }
+    
+    /// <summary>
+    /// This allows you to set a callback which can inspect and modify the process before it is started.
+    /// You can use it for advanced use-cases or to build extensions on top of ShellCommand
+    /// </summary>
+    public ShellCommand BeforeStartHook(Action<Process> hook)
+    {
+        beforeStartHooks ??= new List<Action<Process>>();
+        beforeStartHooks.Add(hook);
         return this;
     }
 
@@ -150,30 +140,17 @@ public class ShellCommand
 
         if (rawCommandLineArguments is not null)
         {
-            process.StartInfo.Arguments = commandLinePrefixArgument is not null
-                ? $"{commandLinePrefixArgument} {rawCommandLineArguments}"
-                : rawCommandLineArguments;
+            process.StartInfo.Arguments = rawCommandLineArguments;
         }
         else if (commandLineArguments is { Count: > 0 })
         {
 #if NET5_0_OR_GREATER
             // Prefer ArgumentList if we're on net5.0 or greater. Our polyfill should have the same behaviour, but
             // If we stick with the CLR we will pick up optimizations and bugfixes going forward
-            if (commandLinePrefixArgument is not null) process.StartInfo.ArgumentList.Add(commandLinePrefixArgument);
-
             foreach (var arg in commandLineArguments) process.StartInfo.ArgumentList.Add(arg);
 #else
-            var fullArgs = commandLinePrefixArgument is not null
-                ? [commandLinePrefixArgument, ..commandLineArguments]
-                : commandLineArguments;
-
-            process.StartInfo.Arguments = PasteArguments.JoinArguments(fullArgs);
+            process.StartInfo.Arguments = PasteArguments.JoinArguments(commandLineArguments);
 #endif
-        }
-        else if (commandLinePrefixArgument is not null)
-        {
-            // e.g. WithDotNetExecutable("foo.dll") with no other args; and we need to do "dotnet foo.dll"
-            process.StartInfo.Arguments = commandLinePrefixArgument;
         }
 
         if (workingDirectory is not null) process.StartInfo.WorkingDirectory = workingDirectory;
@@ -241,7 +218,8 @@ public class ShellCommand
 
         var process = new Process();
         ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
-
+        
+        beforeStartHooks?.ForEach(hook => hook(process));
         process.Start();
 
         if (shouldBeginOutputRead) process.BeginOutputReadLine();
@@ -276,6 +254,8 @@ public class ShellCommand
 
         var process = new Process();
         ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
+        
+        beforeStartHooks?.ForEach(hook => hook(process));
         process.Start();
 
         if (shouldBeginOutputRead) process.BeginOutputReadLine();

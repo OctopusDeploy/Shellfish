@@ -52,8 +52,7 @@ public class ShellCommandFixtureWindows(ShellCommandFixtureWindows.WindowsUserCl
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
-        var executor = new ShellCommand()
-            .WithExecutable(command)
+        var executor = new ShellCommand(command)
             .WithRawArguments(arguments)
             .CaptureStdOutTo(stdOut)
             .CaptureStdErrTo(stdErr);
@@ -83,8 +82,7 @@ public class ShellCommandFixtureWindows(ShellCommandFixtureWindows.WindowsUserCl
             var stdOut = new StringBuilder();
             var stdErr = new StringBuilder();
 
-            var executor = new ShellCommand()
-                .WithExecutable("cmd.exe")
+            var executor = new ShellCommand("cmd.exe")
                 .WithRawArguments("/c " + tempFile)
                 .CaptureStdOutTo(stdOut)
                 .CaptureStdErrTo(stdErr);
@@ -133,8 +131,7 @@ public class ShellCommandFixtureWindows(ShellCommandFixtureWindows.WindowsUserCl
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
-        var executor = new ShellCommand()
-            .WithExecutable(command)
+        var executor = new ShellCommand(command)
             .WithRawArguments(arguments)
             .RunAsUser(user.GetCredential())
             // Target the CommonApplicationData folder since this is a place the particular user can get to
@@ -157,8 +154,7 @@ public class ShellCommandFixtureWindows(ShellCommandFixtureWindows.WindowsUserCl
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
-        var executor = new ShellCommand()
-            .WithExecutable("cmd.exe")
+        var executor = new ShellCommand("cmd.exe")
             .WithRawArguments($"/c \"echo {EchoEnvironmentVariable("customenvironmentvariable")}\"")
             .RunAsUser(user.GetCredential())
             .WithEnvironmentVariables(new Dictionary<string, string>
@@ -182,8 +178,7 @@ public class ShellCommandFixtureWindows(ShellCommandFixtureWindows.WindowsUserCl
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(240));
 
-        var executor = new ShellCommand()
-            .WithExecutable("cmd.exe")
+        var executor = new ShellCommand("cmd.exe")
             .WithRawArguments($"/c \"echo {EchoEnvironmentVariable("customenvironmentvariable")}%\"")
             .RunAsUser(user.GetCredential())
             .WithWorkingDirectory(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData));
@@ -220,8 +215,7 @@ public class ShellCommandFixtureWindows(ShellCommandFixtureWindows.WindowsUserCl
 
         var uniqueString = Guid.NewGuid().ToString("N");
 
-        var executor = new ShellCommand()
-            .WithExecutable("cmd.exe")
+        var executor = new ShellCommand("cmd.exe")
             // Prove we can write to the temp folder by reading the contents back and echoing them into our test 
             .WithRawArguments($"/c \"echo {uniqueString} > %temp%\\{uniqueString}.txt && type %temp%\\{uniqueString}.txt\"")
             .RunAsUser(user.GetCredential())
