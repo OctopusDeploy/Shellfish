@@ -20,6 +20,15 @@ namespace Tests;
 #endif
 public class ShellCommandFixtureWindows(ShellCommandFixtureWindows.WindowsUserClassFixture fx) : IClassFixture<ShellCommandFixtureWindows.WindowsUserClassFixture>
 {
+#if NET5_0_OR_GREATER
+    static ShellCommandFixtureWindows()
+    {
+        // Our "WithOutputEncoding" test fails on .NET Core without this
+        // Refer https://nicolaiarocci.com/how-to-read-windows-1252-encoded-files-with-.netcore-and-.net5-/
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+    }
+#endif
+    
     // Note: This leaves the user account lying around on your PC. We should probably delete it but it's the same account each time so not a big deal.
     public class WindowsUserClassFixture
     {
