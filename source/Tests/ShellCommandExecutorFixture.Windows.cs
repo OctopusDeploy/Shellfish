@@ -42,7 +42,7 @@ public class ShellCommandExecutorFixtureWindows(ShellCommandExecutorFixtureWindo
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
-        var executor = new ShellCommandExecutor()
+        var executor = new ShellCommand()
             .WithExecutable(command)
             .WithRawArguments(arguments)
             .CaptureStdOutTo(stdOut)
@@ -67,7 +67,7 @@ public class ShellCommandExecutorFixtureWindows(ShellCommandExecutorFixtureWindo
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
-        var executor = new ShellCommandExecutor()
+        var executor = new ShellCommand()
             .WithExecutable(command)
             .WithRawArguments(arguments)
             .RunAsUser(user.GetCredential())
@@ -91,7 +91,7 @@ public class ShellCommandExecutorFixtureWindows(ShellCommandExecutorFixtureWindo
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
-        var executor = new ShellCommandExecutor()
+        var executor = new ShellCommand()
             .WithExecutable("cmd.exe")
             .WithRawArguments($"/c \"echo {EchoEnvironmentVariable("customenvironmentvariable")}\"")
             .RunAsUser(user.GetCredential())
@@ -116,7 +116,7 @@ public class ShellCommandExecutorFixtureWindows(ShellCommandExecutorFixtureWindo
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(240));
 
-        var executor = new ShellCommandExecutor()
+        var executor = new ShellCommand()
             .WithExecutable("cmd.exe")
             .WithRawArguments($"/c \"echo {EchoEnvironmentVariable("customenvironmentvariable")}%\"")
             .RunAsUser(user.GetCredential())
@@ -154,7 +154,7 @@ public class ShellCommandExecutorFixtureWindows(ShellCommandExecutorFixtureWindo
 
         var uniqueString = Guid.NewGuid().ToString("N");
 
-        var executor = new ShellCommandExecutor()
+        var executor = new ShellCommand()
             .WithExecutable("cmd.exe")
             // Prove we can write to the temp folder by reading the contents back and echoing them into our test 
             .WithRawArguments($"/c \"echo {uniqueString} > %temp%\\{uniqueString}.txt && type %temp%\\{uniqueString}.txt\"")

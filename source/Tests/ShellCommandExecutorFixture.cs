@@ -38,7 +38,7 @@ public class ShellCommandExecutorFixture
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
-        var executor = new ShellCommandExecutor()
+        var executor = new ShellCommand()
             .WithExecutable(Command)
             .WithRawArguments($"{CommandParam} \"exit 99\"")
             .CaptureStdOutTo(stdOut)
@@ -61,7 +61,7 @@ public class ShellCommandExecutorFixture
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
-        var executor = new ShellCommandExecutor()
+        var executor = new ShellCommand()
             .WithExecutable(Command)
             .WithRawArguments($"{CommandParam} \"echo {EchoEnvironmentVariable("customenvironmentvariable")}\"")
             .WithEnvironmentVariables(new Dictionary<string, string>
@@ -89,7 +89,7 @@ public class ShellCommandExecutorFixture
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
         // Starting a new instance of cmd.exe will run indefinitely waiting for user input
-        var executor = new ShellCommandExecutor()
+        var executor = new ShellCommand()
             .WithExecutable(Command)
             .CaptureStdOutTo(stdOut)
             .CaptureStdErrTo(stdErr);
@@ -112,14 +112,14 @@ public class ShellCommandExecutorFixture
 
         stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr, and the process was terminated before the trailing newline got there");
     }
-
+    
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
     public async Task EchoHello_ShouldWriteToStdOut(SyncBehaviour behaviour)
     {
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
-        var executor = new ShellCommandExecutor()
+        var executor = new ShellCommand()
             .WithExecutable(Command)
             .WithRawArguments($"{CommandParam} \"echo hello\"")
             .CaptureStdOutTo(stdOut)
@@ -140,7 +140,7 @@ public class ShellCommandExecutorFixture
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
-        var executor = new ShellCommandExecutor()
+        var executor = new ShellCommand()
             .WithExecutable(Command)
             .WithRawArguments($"{CommandParam} \"echo Something went wrong! 1>&2\"")
             .CaptureStdOutTo(stdOut)
@@ -165,7 +165,7 @@ public class ShellCommandExecutorFixture
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
-        var executor = new ShellCommandExecutor()
+        var executor = new ShellCommand()
             .WithExecutable(Command)
             .WithRawArguments(arguments)
             .CaptureStdOutTo(stdOut)
@@ -186,7 +186,7 @@ public class ShellCommandExecutorFixture
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
-        var executor = new ShellCommandExecutor()
+        var executor = new ShellCommand()
             .WithExecutable(Command)
             .WithArguments(CommandParam, "echo hello")
             .CaptureStdOutTo(stdOut)
@@ -224,7 +224,7 @@ public class ShellCommandExecutorFixture
                 ? ["/c", tempScript]
                 : [tempScript];
 
-            var executor = new ShellCommandExecutor()
+            var executor = new ShellCommand()
                 .WithExecutable(Command)
                 .WithArguments([..invocation, ..inputArgs])
                 .CaptureStdOutTo(stdOut)

@@ -13,7 +13,7 @@ namespace Octopus.Shellfish;
 using static ShellCommandExecutorHelpers;
 
 // This is the NEW shellfish API. It is currently under development
-public class ShellCommandExecutor
+public class ShellCommand
 {
     string? executable;
     string? commandLinePrefixArgument; // special case to allow WithDotNetExecutable to work
@@ -34,13 +34,13 @@ public class ShellCommandExecutor
     List<IOutputTarget>? stdOutTargets;
     List<IOutputTarget>? stdErrTargets;
 
-    public ShellCommandExecutor WithExecutable(string exe)
+    public ShellCommand WithExecutable(string exe)
     {
         executable = exe;
         return this;
     }
 
-    public ShellCommandExecutor WithWorkingDirectory(string workingDir)
+    public ShellCommand WithWorkingDirectory(string workingDir)
     {
         workingDirectory = workingDir;
         return this;
@@ -48,7 +48,7 @@ public class ShellCommandExecutor
 
     // Configures the runner to launch the specified executable if it is a .exe, or to launch the specified .dll using dotnet.exe if it is a .dll.
     // assumes "dotnet" is in the PATH somewhere
-    public ShellCommandExecutor WithDotNetExecutable(string exeOrDll)
+    public ShellCommand WithDotNetExecutable(string exeOrDll)
     {
         if (exeOrDll.EndsWith(".dll"))
         {
@@ -59,7 +59,7 @@ public class ShellCommandExecutor
         return this;
     }
 
-    public ShellCommandExecutor WithArguments(params string[] arguments)
+    public ShellCommand WithArguments(params string[] arguments)
     {
         commandLineArguments ??= new List<string>();
         commandLineArguments.Clear();
@@ -71,13 +71,13 @@ public class ShellCommandExecutor
     /// Allows you to supply a string which will be passed directly to Process.StartInfo.Arguments,
     /// can be useful if you have custom quoting requirements or other special needs.
     /// </summary>
-    public ShellCommandExecutor WithRawArguments(string rawArguments)
+    public ShellCommand WithRawArguments(string rawArguments)
     {
         rawCommandLineArguments = rawArguments;
         return this;
     }
     
-    public ShellCommandExecutor WithEnvironmentVariables(Dictionary<string, string> dictionary)
+    public ShellCommand WithEnvironmentVariables(Dictionary<string, string> dictionary)
     {
         environmentVariables = dictionary;
         return this;
@@ -86,34 +86,34 @@ public class ShellCommandExecutor
 #if NET5_0_OR_GREATER
     [SupportedOSPlatform("Windows")]
 #endif
-    public ShellCommandExecutor RunAsUser(NetworkCredential credential)
+    public ShellCommand RunAsUser(NetworkCredential credential)
     {
         // Note: "RunAsUser" name is generic because we could expand this to support unix in future. Right now it's just windows.
         windowsCredential = credential;
         return this;
     }
 
-    public ShellCommandExecutor CaptureStdOutTo(StringBuilder stringBuilder)
+    public ShellCommand CaptureStdOutTo(StringBuilder stringBuilder)
     {
         stdOutTargets ??= new List<IOutputTarget>();
         stdOutTargets.Add(new CapturedStringBuilderTarget(stringBuilder));
         return this;
     }
 
-    public ShellCommandExecutor CaptureStdErrTo(StringBuilder stringBuilder)
+    public ShellCommand CaptureStdErrTo(StringBuilder stringBuilder)
     {
         stdErrTargets ??= new List<IOutputTarget>();
         stdErrTargets.Add(new CapturedStringBuilderTarget(stringBuilder));
         return this;
     }
 
-    public ShellCommandExecutor KillProcessOnCancellation(bool shouldKill = true)
+    public ShellCommand KillProcessOnCancellation(bool shouldKill = true)
     {
         shouldKillProcessOnCancellation = shouldKill;
         return this;
     }
 
-    public ShellCommandExecutor SwallowCancellationException(bool shouldSwallow = true)
+    public ShellCommand SwallowCancellationException(bool shouldSwallow = true)
     {
         shouldSwallowCancellationException = shouldSwallow;
         return this;
