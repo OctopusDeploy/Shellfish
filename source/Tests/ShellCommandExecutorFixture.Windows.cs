@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,7 +18,7 @@ namespace Tests;
 #if NET5_0_OR_GREATER
     [System.Runtime.Versioning.SupportedOSPlatform("Windows")]
 #endif
-public class ShellCommandExecutorFixtureWindows(ShellCommandExecutorFixtureWindows.WindowsUserClassFixture fx) : IClassFixture<ShellCommandExecutorFixtureWindows.WindowsUserClassFixture>
+public class ShellCommandFixtureWindows(ShellCommandFixtureWindows.WindowsUserClassFixture fx) : IClassFixture<ShellCommandFixtureWindows.WindowsUserClassFixture>
 {
     // Note: This leaves the user account lying around on your PC. We should probably delete it but it's the same account each time so not a big deal.
     public class WindowsUserClassFixture
@@ -29,9 +30,9 @@ public class ShellCommandExecutorFixtureWindows(ShellCommandExecutorFixtureWindo
 
     const string Username = "test-shellexecutor";
 
-    readonly CancellationTokenSource cancellationTokenSource = new(ShellCommandExecutorFixture.TestTimeout);
+    readonly CancellationTokenSource cancellationTokenSource = new(ShellCommandFixture.TestTimeout);
     CancellationToken CancellationToken => cancellationTokenSource.Token;
-
+    
     [WindowsTheory]
     [InlineData("cmd.exe", "/c \"echo %userdomain%\\%username%\"", SyncBehaviour.Sync)]
     [InlineData("cmd.exe", "/c \"echo %userdomain%\\%username%\"", SyncBehaviour.Async)]
@@ -55,6 +56,62 @@ public class ShellCommandExecutorFixtureWindows(ShellCommandExecutorFixtureWindo
         result.ExitCode.Should().Be(0, "the process should have run to completion");
         stdErr.ToString().Should().Be(Environment.NewLine, "no messages should be written to stderr");
         stdOut.ToString().Should().ContainEquivalentOf($@"{Environment.UserDomainName}\{Environment.UserName}");
+    }
+
+    [WindowsTheory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    public async Task SettingOutputEncodingShouldAllowUsToReadWeirdText(SyncBehaviour behaviour)
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".cmd");
+        // codepage 932 is Shift-JIS
+        File.WriteAllText(tempFile,
+            """
+            @ECHO OFF
+            CHCP 932
+            ECHO ㈱髙
+            """);
+        try
+        {
+            var stdOut = new StringBuilder();
+            var stdErr = new StringBuilder();
+
+            var executor = new ShellCommand()
+                .WithExecutable("cmd.exe")
+                .WithRawArguments("/c " + tempFile)
+                .CaptureStdOutTo(stdOut)
+                .CaptureStdErrTo(stdErr);
+
+            var result = behaviour == SyncBehaviour.Async
+                ? await executor.ExecuteAsync(CancellationToken)
+                : executor.Execute(CancellationToken);
+
+            result.ExitCode.Should().Be(0, "the process should have run to completion");
+            stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
+            stdOut.ToStringWithoutTrailingWhitespace().Should().Be("Active code page: 932" + Environment.NewLine + "πê\u2592Θ\u00bdüE");
+            
+            // Now try again with the encoding set to Shift-JIS, it should work
+            stdOut.Clear();
+            stdErr.Clear();
+            executor.WithOutputEncoding(Encoding.GetEncoding(932));
+            
+            var resultFixed = behaviour == SyncBehaviour.Async
+                ? await executor.ExecuteAsync(CancellationToken)
+                : executor.Execute(CancellationToken);
+
+            resultFixed.ExitCode.Should().Be(0, "the process should have run to completion");
+            stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
+            stdOut.ToStringWithoutTrailingWhitespace().Should().Be("Active code page: 932" + Environment.NewLine + "繹ｱ鬮・");
+        }
+        finally
+        {
+            try
+            {
+                File.Delete(tempFile);
+            }
+            catch (Exception)
+            {
+                // can't do much, just leave the tempfile
+            }
+        }
     }
 
     [WindowsTheory]

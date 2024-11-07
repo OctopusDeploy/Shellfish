@@ -17,7 +17,7 @@ using Xunit;
 namespace Tests;
 
 // Cross-platform tests for ShellCommandExecutor
-public class ShellCommandExecutorFixture
+public class ShellCommandFixture
 {
     // ReSharper disable InconsistentNaming
     const int SIG_TERM = 143;

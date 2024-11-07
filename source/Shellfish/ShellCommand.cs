@@ -22,6 +22,7 @@ public class ShellCommand
     string? workingDirectory;
     Dictionary<string, string>? environmentVariables;
     NetworkCredential? windowsCredential;
+    Encoding? outputEncoding;
 
     // The legacy ShellExecutor would unconditionally kill the process upon cancellation.
     // We keep that default as it is the safest option for compaitbility, but it can be changed
@@ -30,6 +31,7 @@ public class ShellCommand
     // The legacy ShellExecutor would not throw an OperationCanceledException if CancellationToken was signaled.
     // This is a bit weird and not standard for .NET, but we keep it as the default for compatibility.
     bool shouldSwallowCancellationException = true;
+    
 
     List<IOutputTarget>? stdOutTargets;
     List<IOutputTarget>? stdErrTargets;
@@ -93,6 +95,26 @@ public class ShellCommand
         return this;
     }
 
+    /// <summary>
+    /// This controls the value of process.StartInfo.StandardOutputEncoding and process.StartInfo.StandardErrorEncoding.
+    /// It can be used if you are running a process that outputs text in a nonstandard encoding that System.Diagnostics.Process
+    /// can't handle automatically
+    /// </summary>
+    /// <remarks>
+    /// The old ShellExecutor API would always set the Output Encoding on windows to the "OEM" encoding using
+    /// XPlatAdapter.GetOemEncoding() to determine what that was.
+    ///
+    /// This traces back to an old bug (in powershell, possibly?), which I could not reproduce on a modern Windows 11 system.
+    /// As it does not appear to be required anymore, we no longer set the OEM encoding by default, but this lets you set it manually, should you have some other reason.
+    ///   https://github.com/OctopusDeploy/Issues/issues/748
+    ///   https://github.com/OctopusDeploy/OctopusDeploy/commit/a223657f4d5d64bde8a638322d3f6f2f7b188169
+    /// </remarks>
+    public ShellCommand WithOutputEncoding(Encoding encoding)
+    {
+        outputEncoding = encoding;
+        return this;
+    }
+    
     public ShellCommand CaptureStdOutTo(StringBuilder stringBuilder)
     {
         stdOutTargets ??= new List<IOutputTarget>();
@@ -157,6 +179,12 @@ public class ShellCommand
         if (workingDirectory is not null) process.StartInfo.WorkingDirectory = workingDirectory;
         process.StartInfo.UseShellExecute = false;
         process.StartInfo.CreateNoWindow = true;
+
+        if (outputEncoding is not null)
+        {
+            process.StartInfo.StandardOutputEncoding = outputEncoding;
+            process.StartInfo.StandardErrorEncoding = outputEncoding;
+        }
 
         if (windowsCredential is not null)
         {

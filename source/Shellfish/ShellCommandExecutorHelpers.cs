@@ -13,7 +13,7 @@ public static class ShellCommandExecutorHelpers
     internal static readonly IXPlatAdapter XPlatAdapter = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
         ? new WindowsAdapter()
         : new NixAdapter();
-    
+
     internal static int SafelyGetExitCode(Process process)
     {
         try
@@ -26,7 +26,7 @@ public static class ShellCommandExecutorHelpers
             return -1;
         }
     }
-    
+
     internal static void TryKillProcessAndChildrenRecursively(Process process, Action<string>? error = null)
     {
         try
@@ -51,10 +51,8 @@ public static class ShellCommandExecutorHelpers
     {
         var tcs = new TaskCompletionSource<bool>();
 
-        CancellationTokenRegistration registration = default;
-        registration = cancellationToken.Register(() =>
+        var registration = cancellationToken.Register(() =>
         {
-            registration.Dispose();
             tcs.TrySetCanceled();
         });
 
@@ -68,6 +66,10 @@ public static class ShellCommandExecutorHelpers
             catch (Exception e)
             {
                 tcs.TrySetException(e);
+            }
+            finally
+            {
+                registration.Dispose();
             }
         }).Start();
         return tcs.Task;
