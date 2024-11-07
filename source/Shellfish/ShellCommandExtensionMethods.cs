@@ -32,20 +32,19 @@ public static class ShellCommandExtensionMethods
                 process.StartInfo.ArgumentList.Insert(0, executable);
                 return;
             }
-#endif                
-            // if we have a string argumentlist, we need to prepend to that.
+#endif
+            
+            var sb = new StringBuilder();
+            PasteArguments.AppendArgument(sb, executable); // quote the executable if needed
+            
+            // if we have a string argumentlist, we need to append that.
             if (!string.IsNullOrEmpty(process.StartInfo.Arguments))
             {
-                var sb = new StringBuilder();
-                PasteArguments.AppendArgument(sb, executable); // quote the executable if needed
-                sb.Append(" ");
+                sb.Append(' ');
                 sb.Append(process.StartInfo.Arguments);
-                process.StartInfo.Arguments = sb.ToString();
-                return;
             }
             
-            // else we have no prior arguments, the executable becomes the only argument to `dotnet`
-            process.StartInfo.Arguments = executable;
+            process.StartInfo.Arguments = sb.ToString();;
         });
     }
 }
