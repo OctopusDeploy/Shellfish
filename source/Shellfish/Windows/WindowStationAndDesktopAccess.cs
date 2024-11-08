@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Security.AccessControl;
 using System.Security.Principal;
 
@@ -7,6 +8,9 @@ namespace Octopus.Shellfish.Windows
 {
     // Required to allow a service to run a process as another user
     // See http://stackoverflow.com/questions/677874/starting-a-process-with-credentials-from-a-windows-service/30687230#30687230
+#if NET5_0_OR_GREATER
+    [SupportedOSPlatform("Windows")]
+#endif
     static class WindowStationAndDesktopAccess
     {
         public static void GrantAccessToWindowStationAndDesktop(string username, string? domainName = null)

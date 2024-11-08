@@ -36,6 +36,10 @@
     <Reference Include="System.ServiceProcess" />
   </ItemGroup>
 
+  <!-- dotnet core doesn't include codepages by default; we have a test which uses them so we need to pull it in -->
+  <ItemGroup Condition=" '$(TargetFrameworkIdentifier)' == '.NETCoreApp' ">
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="8.0.0" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Shellfish\Shellfish.csproj" />

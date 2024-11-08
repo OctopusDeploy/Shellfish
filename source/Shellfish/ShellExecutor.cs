@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Threading;
 using Octopus.Shellfish.Nix;
 using Octopus.Shellfish.Plumbing;
@@ -13,7 +14,7 @@ namespace Octopus.Shellfish
 {
     public static class ShellExecutor
     {
-        static readonly IXPlatAdapter XPlatAdapter = PlatformDetection.IsRunningOnWindows
+        static readonly IXPlatAdapter XPlatAdapter = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
             ? (IXPlatAdapter)new WindowsAdapter()
             : new NixAdapter();
 
@@ -121,11 +122,11 @@ namespace Octopus.Shellfish
                     if (runAs == null)
                         RunAsSameUser(process.StartInfo, customEnvironmentVariables);
                     else
-                        XPlatAdapter.RunAsDifferentUser(process.StartInfo, runAs, customEnvironmentVariables);
+                        XPlatAdapter.ConfigureStartInfoForUser(process.StartInfo, runAs, customEnvironmentVariables);
 
                     process.StartInfo.RedirectStandardOutput = true;
                     process.StartInfo.RedirectStandardError = true;
-                    if (PlatformDetection.IsRunningOnWindows)
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                     {
                         process.StartInfo.StandardOutputEncoding = encoding;
                         process.StartInfo.StandardErrorEncoding = encoding;
@@ -242,7 +243,7 @@ namespace Octopus.Shellfish
                     if (runAs == null)
                         RunAsSameUser(process.StartInfo, customEnvironmentVariables);
                     else
-                        XPlatAdapter.RunAsDifferentUser(process.StartInfo, runAs, customEnvironmentVariables);
+                        XPlatAdapter.ConfigureStartInfoForUser(process.StartInfo, runAs, customEnvironmentVariables);
 
                     process.Start();
                 }
