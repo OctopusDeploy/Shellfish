@@ -3,24 +3,13 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using FluentAssertions;
-using Octopus.Shellfish.Plumbing;
 using Tests.Plumbing;
 using Xunit;
 
 namespace Tests
 {
-    public class ShellExecutorFixtureWindows(ShellExecutorFixtureWindows.ClassFixture fx) : IClassFixture<ShellExecutorFixtureWindows.ClassFixture>
+    public class ShellExecutorFixtureWindows(WindowsUserClassFixture fx) : IClassFixture<WindowsUserClassFixture>
     {
-        // Multiple tests want this TestUserPrincipal to exist, but they don't modify it.
-        // We can save a significant amount of time by creating it once up-front
-        public class ClassFixture
-        {
-            internal TestUserPrincipal User { get; } = new(Username);
-        }
-        
-        // ReSharper disable InconsistentNaming
-        const string Username = "test-shellexecutor";
-
         static readonly string Command = "cmd.exe";
         static readonly string CommandParam = "/c";
 

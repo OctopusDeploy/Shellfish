@@ -18,7 +18,7 @@ namespace Tests;
 #if NET5_0_OR_GREATER
     [System.Runtime.Versioning.SupportedOSPlatform("Windows")]
 #endif
-public class ShellCommandFixtureWindows(ShellCommandFixtureWindows.WindowsUserClassFixture fx) : IClassFixture<ShellCommandFixtureWindows.WindowsUserClassFixture>
+public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixture<WindowsUserClassFixture>
 {
 #if NET5_0_OR_GREATER
     static ShellCommandFixtureWindows()
@@ -29,15 +29,7 @@ public class ShellCommandFixtureWindows(ShellCommandFixtureWindows.WindowsUserCl
     }
 #endif
     
-    // Note: This leaves the user account lying around on your PC. We should probably delete it but it's the same account each time so not a big deal.
-    public class WindowsUserClassFixture
-    {
-        internal TestUserPrincipal User { get; } = new(Username);
-    }
-
     readonly TestUserPrincipal user = fx.User;
-
-    const string Username = "test-shellexecutor";
 
     readonly CancellationTokenSource cancellationTokenSource = new(ShellCommandFixture.TestTimeout);
     CancellationToken CancellationToken => cancellationTokenSource.Token;

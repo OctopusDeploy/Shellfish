@@ -49,12 +49,12 @@ public static class ShellCommandExecutorHelpers
 
     internal static ManualResetEventSlim? AttachProcessExitedManualResetEvent(Process process, CancellationToken cancellationToken)
     {
-        // if the request is uncancellable, we don't need to enable raising events or do any of this work
+        // if the request isn't cancellable, we don't need to enable raising events or do any of this work
         if (cancellationToken == default) return null;
             
         var mre = new ManualResetEventSlim(false);
         process.EnableRaisingEvents = true;
-        process.Exited += (sender, _) =>
+        process.Exited += (_, _) =>
         {
             mre.Set();
         };
@@ -71,7 +71,7 @@ public static class ShellCommandExecutorHelpers
         });
         
         process.EnableRaisingEvents = true;
-        process.Exited += (sender, _) =>
+        process.Exited += (_, _) =>
         {
             tokenRegistration.Dispose();
             tcs.TrySetResult(true);
