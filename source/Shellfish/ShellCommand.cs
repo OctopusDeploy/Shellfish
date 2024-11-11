@@ -134,7 +134,7 @@ public class ShellCommand(string executable)
     // sets standard flags on the Process that apply in all cases
     void ConfigureProcess(Process process, out bool shouldBeginOutputRead, out bool shouldBeginErrorRead)
     {
-        process.StartInfo.FileName = executable!;
+        process.StartInfo.FileName = executable;
 
         if (rawCommandLineArguments is not null && commandLineArguments is { Count: > 0 }) throw new InvalidOperationException("Cannot specify both raw arguments and arguments");
 
@@ -220,6 +220,8 @@ public class ShellCommand(string executable)
         ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
         
         beforeStartHooks?.ForEach(hook => hook(process));
+        
+        var exitedEvent = AttachProcessExitedManualResetEvent(process, cancellationToken);
         process.Start();
 
         if (shouldBeginOutputRead) process.BeginOutputReadLine();
@@ -227,14 +229,15 @@ public class ShellCommand(string executable)
 
         try
         {
-            if (cancellationToken == default)
-            {
-                process.WaitForExit();
-            }
-            else // cancellation is hard
-            {
-                WaitForExitInNewThread(process, cancellationToken).GetAwaiter().GetResult();
-            }
+            exitedEvent?.Wait(cancellationToken);
+
+            // Either: AttachProcessExitedManualResetEvent determined there was no cancellation to consider and exitedEvent is null.
+            // We can offload all the work to process.WaitForExit();
+            //
+            // Or: ExitEvent was signalled, but we still want to call process.WaitForExit; it waits for the StdErr and StdOut streams to flush.
+            // in a way that can we cannot easily do ourselves.  https://github.com/microsoft/referencesource/blob/51cf7850defa8a17d815b4700b67116e3fa283c2/System/services/monitoring/system/diagnosticts/Process.cs#L2453
+            // It should return very quickly.
+            if (!cancellationToken.IsCancellationRequested) process.WaitForExit();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -256,6 +259,8 @@ public class ShellCommand(string executable)
         ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
         
         beforeStartHooks?.ForEach(hook => hook(process));
+        
+        var exitedTask = AttachProcessExitedTask(process, cancellationToken);
         process.Start();
 
         if (shouldBeginOutputRead) process.BeginOutputReadLine();
@@ -263,11 +268,11 @@ public class ShellCommand(string executable)
 
         try
         {
-#if NET5_0_OR_GREATER // WaitForExitAsync was added in net5; we can't use it when targeting netstandard2.0 
-            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-#else // fake it out.
-            await WaitForExitInNewThread(process, cancellationToken).ConfigureAwait(false);
-#endif
+            await exitedTask.ConfigureAwait(false);
+
+            // Similarly to the sync version, We want to wait for the StdErr and StdOut streams to flush but cannot easily
+            // do this ourselves. https://github.com/dotnet/runtime/blob/e03b9a4692a15eb3ffbb637439241e8f8e5ca95f/src/libraries/System.Diagnostics.Process/src/System/Diagnostics/Process.cs#L1565
+            if (!cancellationToken.IsCancellationRequested) await FinalWaitForExit(process, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -279,6 +284,16 @@ public class ShellCommand(string executable)
         }
 
         return new ShellCommandResult(SafelyGetExitCode(process));
+    }
+
+    static async Task FinalWaitForExit(Process process, CancellationToken cancellationToken)
+    {
+#if NET5_0_OR_GREATER // WaitForExitAsync was added in net5; we can't use it when targeting netstandard2.0 
+        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+#else // Compatibility shim: This is a blocking WaitForExit, but the process should have already exited, it should not take any appreciable amount of time.
+        await Task.CompletedTask;
+        process.WaitForExit();
+#endif
     }
 
     interface IOutputTarget
