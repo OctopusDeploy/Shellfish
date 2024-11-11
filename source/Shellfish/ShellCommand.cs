@@ -22,6 +22,7 @@ public class ShellCommand(string executable)
     NetworkCredential? windowsCredential;
     Encoding? outputEncoding;
     List<Action<Process>>? beforeStartHooks;
+    List<Action<int, Process>>? afterExitHooks;
 
     // The legacy ShellExecutor would unconditionally kill the process upon cancellation.
     // We keep that default as it is the safest option for compaitbility, but it can be changed
@@ -56,6 +57,22 @@ public class ShellCommand(string executable)
     {
         beforeStartHooks ??= new List<Action<Process>>();
         beforeStartHooks.Add(hook);
+        return this;
+    }
+    
+    /// <summary>
+    /// This allows you to set a callback which can inspect and modify the process after it exits.
+    /// You can use it for advanced use-cases or to build extensions on top of ShellCommand.
+    ///
+    /// The int parameter to the action receives the process exit code
+    /// </summary>
+    /// <remarks>
+    /// This is guaranteed to run, even if there was an exception thrown. Neither the exitCode nor the process may be valid in all situations.
+    /// </remarks>
+    public ShellCommand AfterExitHook(Action<int, Process> hook)
+    {
+        afterExitHooks ??= new List<Action<int, Process>>();
+        afterExitHooks.Add(hook);
         return this;
     }
 
@@ -261,6 +278,14 @@ public class ShellCommand(string executable)
             if (shouldKillProcessOnCancellation) TryKillProcessAndChildrenRecursively(process);
             if (!shouldSwallowCancellationException) throw;
         }
+        finally
+        {
+            if (afterExitHooks is not null)
+            {
+                var exitCode = SafelyGetExitCode(process);
+                foreach (var hook in afterExitHooks) hook(exitCode, process);
+            }
+        }
 
         return new ShellCommandResult(SafelyGetExitCode(process));
     }
@@ -295,6 +320,14 @@ public class ShellCommand(string executable)
 
             if (shouldKillProcessOnCancellation) TryKillProcessAndChildrenRecursively(process);
             if (!shouldSwallowCancellationException) throw;
+        }
+        finally
+        {
+            if (afterExitHooks is not null)
+            {
+                var exitCode = SafelyGetExitCode(process);
+                foreach (var hook in afterExitHooks) hook(exitCode, process);
+            }
         }
 
         return new ShellCommandResult(SafelyGetExitCode(process));

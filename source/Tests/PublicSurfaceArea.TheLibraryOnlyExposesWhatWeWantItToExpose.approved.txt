@@ -1,6 +1,7 @@
 Octopus.Shellfish.ShellCommand.WithWorkingDirectory
 Octopus.Shellfish.ShellCommand.WithArguments
 Octopus.Shellfish.ShellCommand.BeforeStartHook
+Octopus.Shellfish.ShellCommand.AfterExitHook
 Octopus.Shellfish.ShellCommand.WithRawArguments
 Octopus.Shellfish.ShellCommand.WithEnvironmentVariables
 Octopus.Shellfish.ShellCommand.RunAsUser

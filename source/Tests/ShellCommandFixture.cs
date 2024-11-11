@@ -351,6 +351,33 @@ public class ShellCommandFixture
         stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
         stdOut.ToStringWithoutTrailingWhitespace().Should().Contain("OLLEH");
     }
+    
+    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    public async Task AfterExitHooksRunInRegistrationOrder(SyncBehaviour behaviour)
+    {
+        var hookResults = new List<string>();
+
+        var executor = new ShellCommand(Command)
+            .AfterExitHook((exitCode, process) =>
+            {
+                hookResults.Add($"exitCode:{exitCode}, executable:{process.StartInfo.FileName}");
+            })
+            .AfterExitHook((exitCode, process) =>
+            {
+                hookResults.Add($"hook2 exitCode:{exitCode}, executable:{process.StartInfo.FileName}");
+            })
+            .WithRawArguments($"{CommandParam} \"echo hello\"");
+
+        var result = behaviour == SyncBehaviour.Async
+            ? await executor.ExecuteAsync(CancellationToken)
+            : executor.Execute(CancellationToken);
+
+        hookResults.Should().Equal(
+            $"exitCode:0, executable:{Command}",
+            $"hook2 exitCode:0, executable:{Command}");
+
+        result.ExitCode.Should().Be(0, "the process should have run to completion");
+    }
 
     static string EchoEnvironmentVariable(string varName)
         => RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? $"%{varName}%" : $"${varName}";
