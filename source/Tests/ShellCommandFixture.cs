@@ -109,9 +109,9 @@ public class ShellCommandFixture
 
         stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr, and the process was terminated before the trailing newline got there");
     }
-    
+
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
-    public async Task EchoHello_ShouldWriteToStdOut(SyncBehaviour behaviour)
+    public async Task EchoHello_ShouldWriteToCapturedStdOutStringBuilder(SyncBehaviour behaviour)
     {
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
@@ -131,23 +131,85 @@ public class ShellCommandFixture
     }
 
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
-    public async Task EchoError_ShouldWriteToStdErr(SyncBehaviour behaviour)
+    public async Task EchoHello_ShouldWriteToCapturedStdOutCallback(SyncBehaviour behaviour)
     {
-        var stdOut = new StringBuilder();
-        var stdErr = new StringBuilder();
+        var outMessages = new List<string>();
+        var errMessages = new List<string>();
 
         var executor = new ShellCommand(Command)
-            .WithRawArguments($"{CommandParam} \"echo Something went wrong! 1>&2\"")
-            .CaptureStdOutTo(stdOut)
-            .CaptureStdErrTo(stdErr);
+            .WithRawArguments($"{CommandParam} \"echo hello\"")
+            .CaptureStdOutTo(line =>
+            {
+                if (!string.IsNullOrWhiteSpace(line)) outMessages.Add(line);
+            })
+            .CaptureStdErrTo(line =>
+            {
+                if (!string.IsNullOrWhiteSpace(line)) errMessages.Add(line);
+            });
 
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(CancellationToken)
             : executor.Execute(CancellationToken);
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
-        stdOut.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stdout");
-        stdErr.ToStringWithoutTrailingWhitespace().Should().ContainEquivalentOf("Something went wrong!");
+        errMessages.Should().BeEmpty("no messages should be written to stderr");
+        outMessages.Should().ContainSingle(msg => msg.Contains("hello"));
+    }
+
+    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    public async Task EchoError_ShouldWriteToCapturedStdErrCallback(SyncBehaviour behaviour)
+    {
+        var outMessages = new List<string>();
+        var errMessages = new List<string>();
+
+        var executor = new ShellCommand(Command)
+            .WithRawArguments($"{CommandParam} \"echo Something went wrong! 1>&2\"")
+            .CaptureStdOutTo(line =>
+            {
+                if (!string.IsNullOrWhiteSpace(line)) outMessages.Add(line);
+            })
+            .CaptureStdErrTo(line =>
+            {
+                if (!string.IsNullOrWhiteSpace(line)) errMessages.Add(line);
+            });
+
+        var result = behaviour == SyncBehaviour.Async
+            ? await executor.ExecuteAsync(CancellationToken)
+            : executor.Execute(CancellationToken);
+
+        result.ExitCode.Should().Be(0, "the process should have run to completion");
+        outMessages.Should().BeEmpty("no messages should be written to stdout");
+        errMessages.Should().ContainSingle(msg => msg.Contains("Something went wrong!"));
+    }
+    
+    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    public async Task MultipleCapturingCallbacks(SyncBehaviour behaviour)
+    {
+        var outStringBuilder = new StringBuilder();
+        var outStringBuilder2 = new StringBuilder();
+        var outMessages = new List<string>();
+
+        var executor = new ShellCommand(Command)
+            .WithRawArguments($"{CommandParam} \"echo hello&& echo goodbye\"")
+            .CaptureStdOutTo(line =>
+            {
+                if (!string.IsNullOrWhiteSpace(line)) outMessages.Add($"FirstHook:{line}");
+            })
+            .CaptureStdOutTo(outStringBuilder)
+            .CaptureStdOutTo(line =>
+            {
+                if (!string.IsNullOrWhiteSpace(line)) outMessages.Add($"SecondHook:{line}");
+            })
+            .CaptureStdOutTo(outStringBuilder2);
+
+        var result = behaviour == SyncBehaviour.Async
+            ? await executor.ExecuteAsync(CancellationToken)
+            : executor.Execute(CancellationToken);
+
+        result.ExitCode.Should().Be(0, "the process should have run to completion");
+        outMessages.Should().Equal("FirstHook:hello", "SecondHook:hello", "FirstHook:goodbye", "SecondHook:goodbye");
+        outStringBuilder.ToStringWithoutTrailingWhitespace().Should().Be("hello" + Environment.NewLine + "goodbye");
+        outStringBuilder2.ToStringWithoutTrailingWhitespace().Should().Be("hello" + Environment.NewLine + "goodbye");
     }
 
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -211,7 +273,7 @@ public class ShellCommandFixture
                 "--thing=\"quotedValue\"",
                 "cherry"
             ];
-            
+
             // when running cmd.exe we need /c to tell it to run the script; bash doesn't want any preamble for a script file
             string[] invocation = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
                 ? ["/c", tempScript]
@@ -225,20 +287,23 @@ public class ShellCommandFixture
             var result = behaviour == SyncBehaviour.Async
                 ? await executor.ExecuteAsync(CancellationToken)
                 : executor.Execute(CancellationToken);
-            
+
             result.ExitCode.Should().Be(0, "the process should have run to completion");
             stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
-            
-            var expectedQuotedValue = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) 
+
+            var expectedQuotedValue = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
                 ? "--thing=\\\"quotedValue\\\"" // on windows echo adds extra quoting; this is an artifact of cmd.exe not our code 
                 : "--thing=\"quotedValue\"";
-            
-            stdOut.ToStringWithoutTrailingWhitespace().Should().Be(string.Join(Environment.NewLine, [
-                "apple",
-                "banana split", // spaces should be preserved
-                expectedQuotedValue,
-                "cherry"
-            ]));
+
+            stdOut.ToStringWithoutTrailingWhitespace()
+                .Should()
+                .Be(string.Join(Environment.NewLine,
+                [
+                    "apple",
+                    "banana split", // spaces should be preserved
+                    expectedQuotedValue,
+                    "cherry"
+                ]));
         }
         finally
         {
@@ -252,7 +317,7 @@ public class ShellCommandFixture
             }
         }
     }
-    
+
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
     public async Task BeforeStartHooksRunInRegistrationOrder(SyncBehaviour behaviour)
     {
@@ -260,7 +325,7 @@ public class ShellCommandFixture
         var stdErr = new StringBuilder();
 
         var capturedArguments = new List<string>();
-        
+
         var executor = new ShellCommand(Command)
             .BeforeStartHook(process =>
             {
@@ -313,10 +378,10 @@ public class ShellCommandFixture
             var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sh");
             File.WriteAllText(tempFile,
                 """
-                for arg in "$@"; do
-                    echo "$arg"
-                done
-                """.Replace("\r\n", "\n"));
+                    for arg in "$@"; do
+                        echo "$arg"
+                    done
+                    """.Replace("\r\n", "\n"));
             return tempFile;
         }
     }

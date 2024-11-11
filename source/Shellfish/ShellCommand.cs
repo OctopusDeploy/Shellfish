@@ -111,11 +111,25 @@ public class ShellCommand(string executable)
         stdOutTargets.Add(new CapturedStringBuilderTarget(stringBuilder));
         return this;
     }
+    
+    public ShellCommand CaptureStdOutTo(Action<string> lineReceived)
+    {
+        stdOutTargets ??= new List<IOutputTarget>();
+        stdOutTargets.Add(new LineReceivedTarget(lineReceived));
+        return this;
+    }
 
     public ShellCommand CaptureStdErrTo(StringBuilder stringBuilder)
     {
         stdErrTargets ??= new List<IOutputTarget>();
         stdErrTargets.Add(new CapturedStringBuilderTarget(stringBuilder));
+        return this;
+    }
+    
+    public ShellCommand CaptureStdErrTo(Action<string> lineReceived)
+    {
+        stdErrTargets ??= new List<IOutputTarget>();
+        stdErrTargets.Add(new LineReceivedTarget(lineReceived));
         return this;
     }
 
@@ -306,5 +320,12 @@ public class ShellCommand(string executable)
         readonly StringBuilder stringBuilder = stringBuilder;
         
         public void DataReceived(string? line) => stringBuilder.AppendLine(line);
+    }
+    
+    class LineReceivedTarget(Action<string> lineReceived) : IOutputTarget
+    {
+        readonly Action<string> lineReceived = lineReceived;
+        
+        public void DataReceived(string? line) => lineReceived(line ?? "");
     }
 }

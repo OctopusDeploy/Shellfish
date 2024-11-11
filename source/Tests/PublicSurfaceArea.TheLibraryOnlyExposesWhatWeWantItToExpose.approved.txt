@@ -6,6 +6,8 @@ Octopus.Shellfish.ShellCommand.WithEnvironmentVariables
 Octopus.Shellfish.ShellCommand.RunAsUser
 Octopus.Shellfish.ShellCommand.WithOutputEncoding
 Octopus.Shellfish.ShellCommand.CaptureStdOutTo
+Octopus.Shellfish.ShellCommand.CaptureStdOutTo
+Octopus.Shellfish.ShellCommand.CaptureStdErrTo
 Octopus.Shellfish.ShellCommand.CaptureStdErrTo
 Octopus.Shellfish.ShellCommand.KillProcessOnCancellation
 Octopus.Shellfish.ShellCommand.SwallowCancellationException
