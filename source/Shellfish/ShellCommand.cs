@@ -6,6 +6,7 @@ using System.Runtime.Versioning;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Octopus.Shellfish.Output;
 
 namespace Octopus.Shellfish;
 
@@ -21,17 +22,7 @@ public class ShellCommand(string executable)
     Dictionary<string, string>? environmentVariables;
     NetworkCredential? windowsCredential;
     Encoding? outputEncoding;
-    List<Action<Process>>? beforeStartHooks;
-    List<Action<int, Process>>? afterExitHooks;
-
-    // The legacy ShellExecutor would unconditionally kill the process upon cancellation.
-    // We keep that default as it is the safest option for compaitbility, but it can be changed
-    bool shouldKillProcessOnCancellation = true;
-
-    // The legacy ShellExecutor would not throw an OperationCanceledException if CancellationToken was signaled.
-    // This is a bit weird and not standard for .NET, but we keep it as the default for compatibility.
-    bool shouldSwallowCancellationException = true;
-
+    CommandOptions options = new();
     List<IOutputTarget>? stdOutTargets;
     List<IOutputTarget>? stdErrTargets;
 
@@ -50,37 +41,10 @@ public class ShellCommand(string executable)
     }
 
     /// <summary>
-    /// This allows you to set a callback which can inspect and modify the process before it is started.
-    /// You can use it for advanced use-cases or to build extensions on top of ShellCommand
-    /// </summary>
-    public ShellCommand BeforeStartHook(Action<Process> hook)
-    {
-        beforeStartHooks ??= new List<Action<Process>>();
-        beforeStartHooks.Add(hook);
-        return this;
-    }
-
-    /// <summary>
-    /// This allows you to set a callback which can inspect and modify the process after it exits.
-    /// You can use it for advanced use-cases or to build extensions on top of ShellCommand.
-    ///
-    /// The int parameter to the action receives the process exit code
-    /// </summary>
-    /// <remarks>
-    /// This is guaranteed to run, even if there was an exception thrown. Neither the exitCode nor the process may be valid in all situations.
-    /// </remarks>
-    public ShellCommand AfterExitHook(Action<int, Process> hook)
-    {
-        afterExitHooks ??= new List<Action<int, Process>>();
-        afterExitHooks.Add(hook);
-        return this;
-    }
-
-    /// <summary>
     /// Allows you to supply a string which will be passed directly to Process.StartInfo.Arguments,
     /// can be useful if you have custom quoting requirements or other special needs.
     /// </summary>
-    public ShellCommand WithRawArguments(string rawArguments)
+    public ShellCommand WithArguments(string rawArguments)
     {
         rawCommandLineArguments = rawArguments;
         return this;
@@ -95,7 +59,7 @@ public class ShellCommand(string executable)
 #if NET5_0_OR_GREATER
     [SupportedOSPlatform("Windows")]
 #endif
-    public ShellCommand RunAsUser(NetworkCredential credential)
+    public ShellCommand WithCredentials(NetworkCredential credential)
     {
         // Note: "RunAsUser" name is generic because we could expand this to support unix in future. Right now it's just windows.
         windowsCredential = credential;
@@ -121,44 +85,24 @@ public class ShellCommand(string executable)
         outputEncoding = encoding;
         return this;
     }
-
-    public ShellCommand CaptureStdOutTo(StringBuilder stringBuilder)
+    
+    public ShellCommand WithStdOutTarget(IOutputTarget outputTarget)
     {
         stdOutTargets ??= new List<IOutputTarget>();
-        stdOutTargets.Add(new CapturedStringBuilderTarget(stringBuilder));
+        stdOutTargets.Add(outputTarget);
         return this;
     }
 
-    public ShellCommand CaptureStdOutTo(Action<string> lineReceived)
-    {
-        stdOutTargets ??= new List<IOutputTarget>();
-        stdOutTargets.Add(new LineReceivedTarget(lineReceived));
-        return this;
-    }
-
-    public ShellCommand CaptureStdErrTo(StringBuilder stringBuilder)
+    public ShellCommand WithStdErrTarget(IOutputTarget outputTarget)
     {
         stdErrTargets ??= new List<IOutputTarget>();
-        stdErrTargets.Add(new CapturedStringBuilderTarget(stringBuilder));
+        stdErrTargets.Add(outputTarget);
         return this;
     }
 
-    public ShellCommand CaptureStdErrTo(Action<string> lineReceived)
+    public ShellCommand WithOptions(Action<CommandOptions> configureOptions)
     {
-        stdErrTargets ??= new List<IOutputTarget>();
-        stdErrTargets.Add(new LineReceivedTarget(lineReceived));
-        return this;
-    }
-
-    public ShellCommand KillProcessOnCancellation(bool shouldKill = true)
-    {
-        shouldKillProcessOnCancellation = shouldKill;
-        return this;
-    }
-
-    public ShellCommand SwallowCancellationException(bool shouldSwallow = true)
-    {
-        shouldSwallowCancellationException = shouldSwallow;
+        configureOptions(options);
         return this;
     }
 
@@ -220,9 +164,10 @@ public class ShellCommand(string executable)
             var targets = stdOutTargets.ToArray();
             process.OutputDataReceived += (_, e) =>
             {
-                if (e.Data is null) return; // don't pass nulls along to the targets, it's an edge case that happens when the process exits
-
-                foreach (var target in targets) target.DataReceived(e.Data);
+                foreach (var target in targets)
+                {
+                    target.WriteLine(e.Data);
+                }
             };
         }
 
@@ -234,9 +179,10 @@ public class ShellCommand(string executable)
             var targets = stdErrTargets.ToArray();
             process.ErrorDataReceived += (_, e) =>
             {
-                if (e.Data is null) return; // don't pass nulls along to the targets, it's an edge case that happens when the process exits
-
-                foreach (var target in targets) target.DataReceived(e.Data);
+                foreach (var target in targets)
+                {
+                    target.WriteLine(e.Data);
+                }
             };
         }
     }
@@ -247,8 +193,6 @@ public class ShellCommand(string executable)
 
         var process = new Process();
         ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
-
-        beforeStartHooks?.ForEach(hook => hook(process));
 
         var exitedEvent = AttachProcessExitedManualResetEvent(process, cancellationToken);
         process.Start();
@@ -273,16 +217,8 @@ public class ShellCommand(string executable)
             if (shouldBeginOutputRead) process.CancelOutputRead();
             if (shouldBeginErrorRead) process.CancelErrorRead();
 
-            if (shouldKillProcessOnCancellation) TryKillProcessAndChildrenRecursively(process);
-            if (!shouldSwallowCancellationException) throw;
-        }
-        finally
-        {
-            if (afterExitHooks is not null)
-            {
-                var exitCode = SafelyGetExitCode(process);
-                foreach (var hook in afterExitHooks) hook(exitCode, process);
-            }
+            if (options.KillProcessOnCancellation) TryKillProcessAndChildrenRecursively(process);
+            if (options.ThrowExceptionOnCancellation) throw;
         }
 
         return new ShellCommandResult(SafelyGetExitCode(process));
@@ -294,9 +230,7 @@ public class ShellCommand(string executable)
 
         var process = new Process();
         ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
-
-        beforeStartHooks?.ForEach(hook => hook(process));
-
+        
         var exitedTask = AttachProcessExitedTask(process, cancellationToken);
         process.Start();
 
@@ -316,16 +250,8 @@ public class ShellCommand(string executable)
             if (shouldBeginOutputRead) process.CancelOutputRead();
             if (shouldBeginErrorRead) process.CancelErrorRead();
 
-            if (shouldKillProcessOnCancellation) TryKillProcessAndChildrenRecursively(process);
-            if (!shouldSwallowCancellationException) throw;
-        }
-        finally
-        {
-            if (afterExitHooks is not null)
-            {
-                var exitCode = SafelyGetExitCode(process);
-                foreach (var hook in afterExitHooks) hook(exitCode, process);
-            }
+            if (options.KillProcessOnCancellation) TryKillProcessAndChildrenRecursively(process);
+            if (options.ThrowExceptionOnCancellation) throw;
         }
 
         return new ShellCommandResult(SafelyGetExitCode(process));
@@ -333,30 +259,11 @@ public class ShellCommand(string executable)
 
     static async Task FinalWaitForExit(Process process, CancellationToken cancellationToken)
     {
-#if NET5_0_OR_GREATER // WaitForExitAsync was added in net5; we can't use it when targeting netstandard2.0 
+#if NET5_0_OR_GREATER
         await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-#else // Compatibility shim: This is a blocking WaitForExit, but the process should have already exited, it should not take any appreciable amount of time.
+#else
         await Task.CompletedTask;
         process.WaitForExit();
 #endif
-    }
-
-    interface IOutputTarget
-    {
-        void DataReceived(string line);
-    }
-
-    class CapturedStringBuilderTarget(StringBuilder stringBuilder) : IOutputTarget
-    {
-        readonly StringBuilder stringBuilder = stringBuilder;
-
-        public void DataReceived(string line) => stringBuilder.AppendLine(line);
-    }
-
-    class LineReceivedTarget(Action<string> lineReceived) : IOutputTarget
-    {
-        readonly Action<string> lineReceived = lineReceived;
-
-        public void DataReceived(string line) => lineReceived(line);
     }
 }

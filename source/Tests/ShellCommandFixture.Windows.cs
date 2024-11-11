@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Octopus.Shellfish;
+using Octopus.Shellfish.Output;
 using Tests.Plumbing;
 using Xunit;
 
@@ -45,9 +46,9 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
         var stdErr = new StringBuilder();
 
         var executor = new ShellCommand(command)
-            .WithRawArguments(arguments)
-            .CaptureStdOutTo(stdOut)
-            .CaptureStdErrTo(stdErr);
+            .WithArguments(arguments)
+            .WithStdOutTarget(stdOut)
+            .WithStdErrTarget(stdErr);
 
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(CancellationToken)
@@ -55,7 +56,7 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
         stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
-        stdOut.ToString().Should().ContainEquivalentOf($@"{Environment.UserDomainName}\{Environment.UserName}");
+        stdOut.ToString().Should().Be($@"{Environment.UserDomainName}\{Environment.UserName}");
     }
 
     [WindowsTheory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -71,34 +72,27 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
             """);
         try
         {
-            var stdOut = new StringBuilder();
-            var stdErr = new StringBuilder();
-
-            var executor = new ShellCommand("cmd.exe")
-                .WithRawArguments("/c " + tempFile)
-                .CaptureStdOutTo(stdOut)
-                .CaptureStdErrTo(stdErr);
+            var (command1, stdOut1, stdErr1) = CreateCommand();
 
             var result = behaviour == SyncBehaviour.Async
-                ? await executor.ExecuteAsync(CancellationToken)
-                : executor.Execute(CancellationToken);
+                ? await command1.ExecuteAsync(CancellationToken)
+                : command1.Execute(CancellationToken);
 
             result.ExitCode.Should().Be(0, "the process should have run to completion");
-            stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
-            stdOut.ToString().Should().Be("Active code page: 932" + Environment.NewLine + "πê\u2592Θ\u00bdüE" + Environment.NewLine);
+            stdErr1.ToString().Should().BeEmpty("no messages should be written to stderr");
+            stdOut1.ToString().Should().Be("Active code page: 932" + Environment.NewLine + "πê\u2592Θ\u00bdüE");
 
             // Now try again with the encoding set to Shift-JIS, it should work
-            stdOut.Clear();
-            stdErr.Clear();
-            executor.WithOutputEncoding(Encoding.GetEncoding(932));
-
+            var (command2, stdOut2, stdErr2) = CreateCommand();
+            command2.WithOutputEncoding(Encoding.GetEncoding(932));
+            
             var resultFixed = behaviour == SyncBehaviour.Async
-                ? await executor.ExecuteAsync(CancellationToken)
-                : executor.Execute(CancellationToken);
+                ? await command2.ExecuteAsync(CancellationToken)
+                : command2.Execute(CancellationToken);
 
             resultFixed.ExitCode.Should().Be(0, "the process should have run to completion");
-            stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
-            stdOut.ToString().Should().Be("Active code page: 932" + Environment.NewLine + "繹ｱ鬮・" + Environment.NewLine);
+            stdErr2.ToString().Should().BeEmpty("no messages should be written to stderr");
+            stdOut2.ToString().Should().Be("Active code page: 932" + Environment.NewLine + "繹ｱ鬮・");
         }
         finally
         {
@@ -110,6 +104,19 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
             {
                 // can't do much, just leave the tempfile
             }
+        }
+
+        (ShellCommand command, StringBuilder stdOut, StringBuilder stdErr) CreateCommand()
+        {
+            var stdOut = new StringBuilder();
+            var stdErr = new StringBuilder();
+
+            var executor = new ShellCommand("cmd.exe")
+                .WithArguments("/c", tempFile)
+                .WithStdOutTarget(stdOut)
+                .WithStdErrTarget(stdErr);
+
+            return (executor, stdOut, stdErr);
         }
     }
 
@@ -124,12 +131,12 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
         var stdErr = new StringBuilder();
 
         var executor = new ShellCommand(command)
-            .WithRawArguments(arguments)
-            .RunAsUser(user.GetCredential())
+            .WithArguments(arguments)
+            .WithCredentials(user.GetCredential())
             // Target the CommonApplicationData folder since this is a place the particular user can get to
             .WithWorkingDirectory(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData))
-            .CaptureStdOutTo(stdOut)
-            .CaptureStdErrTo(stdErr);
+            .WithStdOutTarget(stdOut)
+            .WithStdErrTarget(stdErr);
 
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(CancellationToken)
@@ -143,18 +150,20 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
     [WindowsTheory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
     public async Task RunningAsDifferentUser_ShouldCopySpecialEnvironmentVariables(SyncBehaviour behaviour)
     {
+        var workingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
         var executor = new ShellCommand("cmd.exe")
-            .WithRawArguments($"/c \"echo {EchoEnvironmentVariable("customenvironmentvariable")}\"")
-            .RunAsUser(user.GetCredential())
+            .WithArguments($"/c \"echo {EchoEnvironmentVariable("customenvironmentvariable")}\"")
+            .WithWorkingDirectory(workingDirectory)
+            .WithCredentials(user.GetCredential())
             .WithEnvironmentVariables(new Dictionary<string, string>
             {
                 { "customenvironmentvariable", "customvalue" }
             })
-            .CaptureStdOutTo(stdOut)
-            .CaptureStdErrTo(stdErr);
+            .WithStdOutTarget(stdOut)
+            .WithStdErrTarget(stdErr);
 
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(CancellationToken)
@@ -171,8 +180,8 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(240));
 
         var executor = new ShellCommand("cmd.exe")
-            .WithRawArguments($"/c \"echo {EchoEnvironmentVariable("customenvironmentvariable")}%\"")
-            .RunAsUser(user.GetCredential())
+            .WithArguments($"/c \"echo {EchoEnvironmentVariable("customenvironmentvariable")}%\"")
+            .WithCredentials(user.GetCredential())
             .WithWorkingDirectory(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData));
 
         for (var i = 0; i < 20; i++)
@@ -182,8 +191,8 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
 
             // the executor is mutable so this overwrites the config each time
             executor
-                .CaptureStdOutTo(stdOut)
-                .CaptureStdErrTo(stdErr)
+                .WithStdOutTarget(stdOut)
+                .WithStdErrTarget(stdErr)
                 .WithEnvironmentVariables(new Dictionary<string, string>
                 {
                     { "customenvironmentvariable", $"customvalue-{i}" }
@@ -206,13 +215,15 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
         var stdErr = new StringBuilder();
 
         var uniqueString = Guid.NewGuid().ToString("N");
+        var workingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
 
         var executor = new ShellCommand("cmd.exe")
             // Prove we can write to the temp folder by reading the contents back and echoing them into our test 
-            .WithRawArguments($"/c \"echo {uniqueString} > %temp%\\{uniqueString}.txt && type %temp%\\{uniqueString}.txt\"")
-            .RunAsUser(user.GetCredential())
-            .CaptureStdOutTo(stdOut)
-            .CaptureStdErrTo(stdErr);
+            .WithArguments($"/c \"echo {uniqueString} > %temp%\\{uniqueString}.txt && type %temp%\\{uniqueString}.txt\"")
+            .WithWorkingDirectory(workingDirectory)
+            .WithCredentials(user.GetCredential())
+            .WithStdOutTarget(stdOut)
+            .WithStdErrTarget(stdErr);
 
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(CancellationToken)
