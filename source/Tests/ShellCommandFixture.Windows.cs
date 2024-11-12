@@ -28,12 +28,12 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
     }
 #endif
-    
+
     readonly TestUserPrincipal user = fx.User;
 
     readonly CancellationTokenSource cancellationTokenSource = new(ShellCommandFixture.TestTimeout);
     CancellationToken CancellationToken => cancellationTokenSource.Token;
-    
+
     [WindowsTheory]
     [InlineData("cmd.exe", "/c \"echo %userdomain%\\%username%\"", SyncBehaviour.Sync)]
     [InlineData("cmd.exe", "/c \"echo %userdomain%\\%username%\"", SyncBehaviour.Async)]
@@ -54,7 +54,7 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
             : executor.Execute(CancellationToken);
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
-        stdErr.ToString().Should().Be(Environment.NewLine, "no messages should be written to stderr");
+        stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
         stdOut.ToString().Should().ContainEquivalentOf($@"{Environment.UserDomainName}\{Environment.UserName}");
     }
 
@@ -84,21 +84,21 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
                 : executor.Execute(CancellationToken);
 
             result.ExitCode.Should().Be(0, "the process should have run to completion");
-            stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
-            stdOut.ToStringWithoutTrailingWhitespace().Should().Be("Active code page: 932" + Environment.NewLine + "πê\u2592Θ\u00bdüE");
-            
+            stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
+            stdOut.ToString().Should().Be("Active code page: 932" + Environment.NewLine + "πê\u2592Θ\u00bdüE" + Environment.NewLine);
+
             // Now try again with the encoding set to Shift-JIS, it should work
             stdOut.Clear();
             stdErr.Clear();
             executor.WithOutputEncoding(Encoding.GetEncoding(932));
-            
+
             var resultFixed = behaviour == SyncBehaviour.Async
                 ? await executor.ExecuteAsync(CancellationToken)
                 : executor.Execute(CancellationToken);
 
             resultFixed.ExitCode.Should().Be(0, "the process should have run to completion");
-            stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
-            stdOut.ToStringWithoutTrailingWhitespace().Should().Be("Active code page: 932" + Environment.NewLine + "繹ｱ鬮・");
+            stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
+            stdOut.ToString().Should().Be("Active code page: 932" + Environment.NewLine + "繹ｱ鬮・" + Environment.NewLine);
         }
         finally
         {
@@ -136,8 +136,8 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
             : executor.Execute(CancellationToken);
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
-        stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
-        stdOut.ToStringWithoutTrailingWhitespace().Should().ContainEquivalentOf($@"{user.DomainName}\{user.UserName}");
+        stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
+        stdOut.ToString().Should().ContainEquivalentOf($@"{user.DomainName}\{user.UserName}");
     }
 
     [WindowsTheory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -161,8 +161,8 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
             : executor.Execute(CancellationToken);
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
-        stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
-        stdOut.ToStringWithoutTrailingWhitespace().Should().ContainEquivalentOf("customvalue", "the environment variable should have been copied to the child process");
+        stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
+        stdOut.ToString().Should().ContainEquivalentOf("customvalue", "the environment variable should have been copied to the child process");
     }
 
     [WindowsTheory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -194,8 +194,8 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
                 : executor.Execute(CancellationToken);
 
             result.ExitCode.Should().Be(0, "the process should have run to completion");
-            stdOut.ToStringWithoutTrailingWhitespace().Should().ContainEquivalentOf($"customvalue-{i}", "the environment variable should have been copied to the child process");
-            stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
+            stdOut.ToString().Should().ContainEquivalentOf($"customvalue-{i}", "the environment variable should have been copied to the child process");
+            stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
         }
     }
 
@@ -219,8 +219,8 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
             : executor.Execute(CancellationToken);
 
         result.ExitCode.Should().Be(0, "the process should have run to completion after writing to the temp folder for the other user");
-        stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
-        stdOut.ToStringWithoutTrailingWhitespace().Should().Contain(uniqueString);
+        stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
+        stdOut.ToString().Should().Contain(uniqueString);
     }
 
     static string EchoEnvironmentVariable(string varName) => $"%{varName}%";

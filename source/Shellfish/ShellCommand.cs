@@ -48,7 +48,7 @@ public class ShellCommand(string executable)
         commandLineArguments.AddRange(arguments);
         return this;
     }
-    
+
     /// <summary>
     /// This allows you to set a callback which can inspect and modify the process before it is started.
     /// You can use it for advanced use-cases or to build extensions on top of ShellCommand
@@ -59,7 +59,7 @@ public class ShellCommand(string executable)
         beforeStartHooks.Add(hook);
         return this;
     }
-    
+
     /// <summary>
     /// This allows you to set a callback which can inspect and modify the process after it exits.
     /// You can use it for advanced use-cases or to build extensions on top of ShellCommand.
@@ -85,13 +85,13 @@ public class ShellCommand(string executable)
         rawCommandLineArguments = rawArguments;
         return this;
     }
-    
+
     public ShellCommand WithEnvironmentVariables(Dictionary<string, string> dictionary)
     {
         environmentVariables = dictionary;
         return this;
     }
-    
+
 #if NET5_0_OR_GREATER
     [SupportedOSPlatform("Windows")]
 #endif
@@ -121,14 +121,14 @@ public class ShellCommand(string executable)
         outputEncoding = encoding;
         return this;
     }
-    
+
     public ShellCommand CaptureStdOutTo(StringBuilder stringBuilder)
     {
         stdOutTargets ??= new List<IOutputTarget>();
         stdOutTargets.Add(new CapturedStringBuilderTarget(stringBuilder));
         return this;
     }
-    
+
     public ShellCommand CaptureStdOutTo(Action<string> lineReceived)
     {
         stdOutTargets ??= new List<IOutputTarget>();
@@ -142,7 +142,7 @@ public class ShellCommand(string executable)
         stdErrTargets.Add(new CapturedStringBuilderTarget(stringBuilder));
         return this;
     }
-    
+
     public ShellCommand CaptureStdErrTo(Action<string> lineReceived)
     {
         stdErrTargets ??= new List<IOutputTarget>();
@@ -220,10 +220,9 @@ public class ShellCommand(string executable)
             var targets = stdOutTargets.ToArray();
             process.OutputDataReceived += (_, e) =>
             {
-                foreach (var target in targets)
-                {
-                    target.DataReceived(e.Data);
-                }
+                if (e.Data is null) return; // don't pass nulls along to the targets, it's an edge case that happens when the process exits
+
+                foreach (var target in targets) target.DataReceived(e.Data);
             };
         }
 
@@ -235,10 +234,9 @@ public class ShellCommand(string executable)
             var targets = stdErrTargets.ToArray();
             process.ErrorDataReceived += (_, e) =>
             {
-                foreach (var target in targets)
-                {
-                    target.DataReceived(e.Data);
-                }
+                if (e.Data is null) return; // don't pass nulls along to the targets, it's an edge case that happens when the process exits
+
+                foreach (var target in targets) target.DataReceived(e.Data);
             };
         }
     }
@@ -249,9 +247,9 @@ public class ShellCommand(string executable)
 
         var process = new Process();
         ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
-        
+
         beforeStartHooks?.ForEach(hook => hook(process));
-        
+
         var exitedEvent = AttachProcessExitedManualResetEvent(process, cancellationToken);
         process.Start();
 
@@ -296,9 +294,9 @@ public class ShellCommand(string executable)
 
         var process = new Process();
         ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
-        
+
         beforeStartHooks?.ForEach(hook => hook(process));
-        
+
         var exitedTask = AttachProcessExitedTask(process, cancellationToken);
         process.Start();
 
@@ -345,20 +343,20 @@ public class ShellCommand(string executable)
 
     interface IOutputTarget
     {
-        void DataReceived(string? line);
+        void DataReceived(string line);
     }
 
     class CapturedStringBuilderTarget(StringBuilder stringBuilder) : IOutputTarget
     {
         readonly StringBuilder stringBuilder = stringBuilder;
-        
-        public void DataReceived(string? line) => stringBuilder.AppendLine(line);
+
+        public void DataReceived(string line) => stringBuilder.AppendLine(line);
     }
-    
+
     class LineReceivedTarget(Action<string> lineReceived) : IOutputTarget
     {
         readonly Action<string> lineReceived = lineReceived;
-        
-        public void DataReceived(string? line) => lineReceived(line ?? "");
+
+        public void DataReceived(string line) => lineReceived(line);
     }
 }

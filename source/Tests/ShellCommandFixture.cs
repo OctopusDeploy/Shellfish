@@ -50,8 +50,8 @@ public class ShellCommandFixture
         result.ExitCode.Should().Be(99, "our custom exit code should be reflected");
 
         // we're executing cmd.exe which writes a newline to stdout and stderr
-        stdOut.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stdout");
-        stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
+        stdOut.ToString().Should().BeEmpty("no messages should be written to stdout");
+        stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
     }
 
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -74,8 +74,8 @@ public class ShellCommandFixture
             : executor.Execute(CancellationToken);
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
-        stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty(Environment.NewLine, "no messages should be written to stderr");
-        stdOut.ToStringWithoutTrailingWhitespace().Should().ContainEquivalentOf("customvalue", "the environment variable should have been copied to the child process");
+        stdErr.ToString().Should().BeEmpty(Environment.NewLine, "no messages should be written to stderr");
+        stdOut.ToString().Should().ContainEquivalentOf("customvalue", "the environment variable should have been copied to the child process");
     }
 
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -107,7 +107,7 @@ public class ShellCommandFixture
             exitCode.Should().BeOneOf(SIG_KILL, SIG_TERM, 0, -1);
         }
 
-        stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr, and the process was terminated before the trailing newline got there");
+        stdErr.ToString().Should().BeEmpty("no messages should be written to stderr, and the process was terminated before the trailing newline got there");
     }
 
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -126,8 +126,8 @@ public class ShellCommandFixture
             : executor.Execute(CancellationToken);
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
-        stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
-        stdOut.ToStringWithoutTrailingWhitespace().Should().ContainEquivalentOf("hello");
+        stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
+        stdOut.ToString().Should().ContainEquivalentOf("hello");
     }
 
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -181,7 +181,7 @@ public class ShellCommandFixture
         outMessages.Should().BeEmpty("no messages should be written to stdout");
         errMessages.Should().ContainSingle(msg => msg.Contains("Something went wrong!"));
     }
-    
+
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
     public async Task MultipleCapturingCallbacks(SyncBehaviour behaviour)
     {
@@ -208,8 +208,8 @@ public class ShellCommandFixture
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
         outMessages.Should().Equal("FirstHook:hello", "SecondHook:hello", "FirstHook:goodbye", "SecondHook:goodbye");
-        outStringBuilder.ToStringWithoutTrailingWhitespace().Should().Be("hello" + Environment.NewLine + "goodbye");
-        outStringBuilder2.ToStringWithoutTrailingWhitespace().Should().Be("hello" + Environment.NewLine + "goodbye");
+        outStringBuilder.ToString().Should().Be("hello" + Environment.NewLine + "goodbye" + Environment.NewLine);
+        outStringBuilder2.ToString().Should().Be("hello" + Environment.NewLine + "goodbye" + Environment.NewLine);
     }
 
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -232,8 +232,8 @@ public class ShellCommandFixture
             : executor.Execute(CancellationToken);
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
-        stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
-        stdOut.ToStringWithoutTrailingWhitespace().Should().ContainEquivalentOf($@"{Environment.UserName}");
+        stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
+        stdOut.ToString().Should().ContainEquivalentOf($@"{Environment.UserName}");
     }
 
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -252,8 +252,8 @@ public class ShellCommandFixture
             : executor.Execute(CancellationToken);
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
-        stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
-        stdOut.ToStringWithoutTrailingWhitespace().Should().ContainEquivalentOf("hello");
+        stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
+        stdOut.ToString().Should().ContainEquivalentOf("hello");
     }
 
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -289,20 +289,21 @@ public class ShellCommandFixture
                 : executor.Execute(CancellationToken);
 
             result.ExitCode.Should().Be(0, "the process should have run to completion");
-            stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
+            stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
 
             var expectedQuotedValue = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
                 ? "--thing=\\\"quotedValue\\\"" // on windows echo adds extra quoting; this is an artifact of cmd.exe not our code 
                 : "--thing=\"quotedValue\"";
 
-            stdOut.ToStringWithoutTrailingWhitespace()
+            stdOut.ToString()
                 .Should()
                 .Be(string.Join(Environment.NewLine,
                 [
                     "apple",
                     "banana split", // spaces should be preserved
                     expectedQuotedValue,
-                    "cherry"
+                    "cherry",
+                    "" // it has a trailing newline at the end
                 ]));
         }
         finally
@@ -348,10 +349,10 @@ public class ShellCommandFixture
         capturedArguments.Should().Equal($"{CommandParam} \"echo OLLEH\"");
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
-        stdErr.ToStringWithoutTrailingWhitespace().Should().BeEmpty("no messages should be written to stderr");
-        stdOut.ToStringWithoutTrailingWhitespace().Should().Contain("OLLEH");
+        stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
+        stdOut.ToString().Should().Contain("OLLEH");
     }
-    
+
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
     public async Task AfterExitHooksRunInRegistrationOrder(SyncBehaviour behaviour)
     {
@@ -372,9 +373,10 @@ public class ShellCommandFixture
             ? await executor.ExecuteAsync(CancellationToken)
             : executor.Execute(CancellationToken);
 
-        hookResults.Should().Equal(
-            $"exitCode:0, executable:{Command}",
-            $"hook2 exitCode:0, executable:{Command}");
+        hookResults.Should()
+            .Equal(
+                $"exitCode:0, executable:{Command}",
+                $"hook2 exitCode:0, executable:{Command}");
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
     }
