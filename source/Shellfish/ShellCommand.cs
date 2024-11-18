@@ -11,7 +11,10 @@ namespace Octopus.Shellfish;
 
 using static ShellCommandExecutorHelpers;
 
-// This is the NEW shellfish API. It is currently under development
+/// <summary>
+/// A fluent wrapper over System.Diagnostics.Process which makes it much easier to use.
+/// </summary>
+/// <param name="executable">The executable to run.</param>
 public class ShellCommand(string executable)
 {
     readonly string executable = executable;
@@ -25,6 +28,14 @@ public class ShellCommand(string executable)
     List<IOutputTarget>? stdOutTargets;
     List<IOutputTarget>? stdErrTargets;
 
+    /// <summary>
+    /// Allows you to specify the working directory for the process.
+    /// If you don't specify one, the process' Current Directory is used.
+    /// </summary>
+    /// <remarks>
+    /// Internally ShellCommand sets UseShellExecute=false, so if unset "the current directory is understood to contain the executable."
+    /// https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.processstartinfo.workingdirectory?view=net-8.0
+    /// </remarks>
     public ShellCommand WithWorkingDirectory(string workingDir)
     {
         workingDirectory = workingDir;
@@ -45,7 +56,7 @@ public class ShellCommand(string executable)
 
     /// <summary>
     /// Allows you to supply a string which will be passed directly to Process.StartInfo.Arguments.
-    /// The string will be passed directly without quoting or escaping, this can be useful if you have custom quoting requirements or other special needs.
+    /// The string will be passed directly without quoting or escaping. This can be useful if you have custom quoting requirements or other special needs.
     /// </summary>
     public ShellCommand WithArguments(string argString)
     {
@@ -118,6 +129,9 @@ public class ShellCommand(string executable)
         return this;
     }
 
+    /// <summary>
+    /// Launches the process and synchronously waits for it to exit.
+    /// </summary>
     public ShellCommandResult Execute(CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(executable)) throw new InvalidOperationException("No executable specified");
@@ -141,7 +155,7 @@ public class ShellCommand(string executable)
             // Or: ExitEvent was signalled, but we still want to call process.WaitForExit; it waits for the StdErr and StdOut streams to flush.
             // in a way that can we cannot easily do ourselves.  https://github.com/microsoft/referencesource/blob/51cf7850defa8a17d815b4700b67116e3fa283c2/System/services/monitoring/system/diagnosticts/Process.cs#L2453
             // It should return very quickly.
-            FinalWaitForExit(process, cancellationToken);
+            if (!cancellationToken.IsCancellationRequested) process.WaitForExit(); // note we CANNOT pass a timeout here as otherwise the WaitForExit implementation will not wait for the streams to flush
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -152,13 +166,16 @@ public class ShellCommand(string executable)
             // We keep that default as it is the safest option for compatibility
             TryKillProcessAndChildrenRecursively(process);
             
-            // The legacy ShellExecutor would not throw an OperationCanceledException if CancellationToken was signaled.
+            // Do not rethrow; The legacy ShellExecutor didn't throw an OperationCanceledException if CancellationToken was signaled.
             // This is a bit nonstandard for .NET, but we keep it as the default for compatibility.
         }
         
         return new ShellCommandResult(SafelyGetExitCode(process));
     }
 
+    /// <summary>
+    /// Launches the process and asynchronously waits for it to exit.
+    /// </summary>
     public async Task<ShellCommandResult> ExecuteAsync(CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(executable)) throw new InvalidOperationException("No executable specified");
@@ -177,8 +194,6 @@ public class ShellCommand(string executable)
             // tests deadlock on linux if we ConfigureAwait(false) here
             await exitedTask.ConfigureAwait(true);
 
-            // Similarly to the sync version, We want to wait for the StdErr and StdOut streams to flush but cannot easily
-            // do this ourselves. https://github.com/dotnet/runtime/blob/e03b9a4692a15eb3ffbb637439241e8f8e5ca95f/src/libraries/System.Diagnostics.Process/src/System/Diagnostics/Process.cs#L1565
             if (!cancellationToken.IsCancellationRequested) await FinalWaitForExitAsync(process, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -190,7 +205,7 @@ public class ShellCommand(string executable)
             // We keep that default as it is the safest option for compatibility
             TryKillProcessAndChildrenRecursively(process);
             
-            // The legacy ShellExecutor did not throw an OperationCanceledException if CancellationToken was signaled.
+            // Do not rethrow; The legacy ShellExecutor didn't throw an OperationCanceledException if CancellationToken was signaled.
             // This is a bit nonstandard for .NET, but we keep it as the default for compatibility.
         }
 
@@ -279,19 +294,14 @@ public class ShellCommand(string executable)
 
     static async Task FinalWaitForExitAsync(Process process, CancellationToken cancellationToken)
     {
-#if NET5_0_OR_GREATER // WaitForExitAsync was added in net5; we can't use it when targeting netstandard2.0 
+#if NET5_0_OR_GREATER // WaitForExitAsync was added in net5. It handles the buffer flushing scenario so we can simply call it.
         await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-#else // Compatibility shim: This is a blocking WaitForExit, but the process should have already exited, it should not take any appreciable amount of time.
+#else 
+        // Compatibility shim for netstandard2.0
+        // Similarly to the sync version, We want to wait for the StdErr and StdOut streams to flush but cannot easily
+        // do this ourselves. https://github.com/dotnet/runtime/blob/e03b9a4692a15eb3ffbb637439241e8f8e5ca95f/src/libraries/System.Diagnostics.Process/src/System/Diagnostics/Process.cs#L1565
         await Task.CompletedTask;
-        FinalWaitForExit(process, cancellationToken);
+        process.WaitForExit(); // note we CANNOT pass a timeout here as otherwise the WaitForExit implementation will not wait for the streams to flush
 #endif
-    }
-
-    static void FinalWaitForExit(Process process, CancellationToken cancellationToken)
-    {
-        while (!cancellationToken.IsCancellationRequested && !process.WaitForExit(50))
-        {
-            // quick loop just in case WaitForExit gets stuck preventing us from cancelling.
-        }
     }
 }

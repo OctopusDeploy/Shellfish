@@ -1,12 +1,7 @@
-﻿using System.Text;
-
-namespace Octopus.Shellfish;
-
-// This is the NEW shellfish API. It is currently under development
+﻿namespace Octopus.Shellfish;
 
 /// <summary>
-/// Holds the result of a shell command execution. Typically an exit code, but may also include stdout/stderr, etc
-/// if those were configured to be captured.
+/// Holds the result of a shell command execution.
 /// </summary>
 public class ShellCommandResult(int exitCode)
 {
