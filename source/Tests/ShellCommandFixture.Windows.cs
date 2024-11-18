@@ -30,6 +30,10 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
 #endif
 
     readonly TestUserPrincipal user = fx.User;
+    
+    // If unspecified, ShellCommand will default to the current directory, which our temporary user may not have access to.
+    // Our tests that run as a different user need to set a different working directory or they may fail.
+    string CommonAppDataPath = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
 
     readonly CancellationTokenSource cancellationTokenSource = new(ShellCommandFixture.TestTimeout);
     CancellationToken CancellationToken => cancellationTokenSource.Token;
@@ -45,9 +49,9 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
         var stdErr = new StringBuilder();
 
         var executor = new ShellCommand(command)
-            .WithRawArguments(arguments)
-            .CaptureStdOutTo(stdOut)
-            .CaptureStdErrTo(stdErr);
+            .WithArguments(arguments)
+            .WithStdOutTarget(stdOut)
+            .WithStdErrTarget(stdErr);
 
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(CancellationToken)
@@ -75,9 +79,9 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
             var stdErr = new StringBuilder();
 
             var executor = new ShellCommand("cmd.exe")
-                .WithRawArguments("/c " + tempFile)
-                .CaptureStdOutTo(stdOut)
-                .CaptureStdErrTo(stdErr);
+                .WithArguments("/c " + tempFile)
+                .WithStdOutTarget(stdOut)
+                .WithStdErrTarget(stdErr);
 
             var result = behaviour == SyncBehaviour.Async
                 ? await executor.ExecuteAsync(CancellationToken)
@@ -124,12 +128,11 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
         var stdErr = new StringBuilder();
 
         var executor = new ShellCommand(command)
-            .WithRawArguments(arguments)
-            .RunAsUser(user.GetCredential())
-            // Target the CommonApplicationData folder since this is a place the particular user can get to
-            .WithWorkingDirectory(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData))
-            .CaptureStdOutTo(stdOut)
-            .CaptureStdErrTo(stdErr);
+            .WithArguments(arguments)
+            .WithCredentials(user.GetCredential())
+            .WithWorkingDirectory(CommonAppDataPath)
+            .WithStdOutTarget(stdOut)
+            .WithStdErrTarget(stdErr);
 
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(CancellationToken)
@@ -147,14 +150,15 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
         var stdErr = new StringBuilder();
 
         var executor = new ShellCommand("cmd.exe")
-            .WithRawArguments($"/c \"echo {EchoEnvironmentVariable("customenvironmentvariable")}\"")
-            .RunAsUser(user.GetCredential())
+            .WithArguments($"/c \"echo {EchoEnvironmentVariable("customenvironmentvariable")}\"")
+            .WithCredentials(user.GetCredential())
+            .WithWorkingDirectory(CommonAppDataPath)
             .WithEnvironmentVariables(new Dictionary<string, string>
             {
                 { "customenvironmentvariable", "customvalue" }
             })
-            .CaptureStdOutTo(stdOut)
-            .CaptureStdErrTo(stdErr);
+            .WithStdOutTarget(stdOut)
+            .WithStdErrTarget(stdErr);
 
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(CancellationToken)
@@ -171,9 +175,9 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(240));
 
         var executor = new ShellCommand("cmd.exe")
-            .WithRawArguments($"/c \"echo {EchoEnvironmentVariable("customenvironmentvariable")}%\"")
-            .RunAsUser(user.GetCredential())
-            .WithWorkingDirectory(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData));
+            .WithArguments($"/c \"echo {EchoEnvironmentVariable("customenvironmentvariable")}%\"")
+            .WithCredentials(user.GetCredential())
+            .WithWorkingDirectory(CommonAppDataPath);
 
         for (var i = 0; i < 20; i++)
         {
@@ -182,8 +186,8 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
 
             // the executor is mutable so this overwrites the config each time
             executor
-                .CaptureStdOutTo(stdOut)
-                .CaptureStdErrTo(stdErr)
+                .WithStdOutTarget(stdOut)
+                .WithStdErrTarget(stdErr)
                 .WithEnvironmentVariables(new Dictionary<string, string>
                 {
                     { "customenvironmentvariable", $"customvalue-{i}" }
@@ -209,10 +213,11 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
 
         var executor = new ShellCommand("cmd.exe")
             // Prove we can write to the temp folder by reading the contents back and echoing them into our test 
-            .WithRawArguments($"/c \"echo {uniqueString} > %temp%\\{uniqueString}.txt && type %temp%\\{uniqueString}.txt\"")
-            .RunAsUser(user.GetCredential())
-            .CaptureStdOutTo(stdOut)
-            .CaptureStdErrTo(stdErr);
+            .WithArguments($"/c \"echo {uniqueString} > %temp%\\{uniqueString}.txt && type %temp%\\{uniqueString}.txt\"")
+            .WithCredentials(user.GetCredential())
+            .WithWorkingDirectory(CommonAppDataPath)
+            .WithStdOutTarget(stdOut)
+            .WithStdErrTarget(stdErr);
 
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(CancellationToken)

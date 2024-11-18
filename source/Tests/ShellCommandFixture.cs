@@ -39,9 +39,9 @@ public class ShellCommandFixture
         var stdErr = new StringBuilder();
 
         var executor = new ShellCommand(Command)
-            .WithRawArguments($"{CommandParam} \"exit 99\"")
-            .CaptureStdOutTo(stdOut)
-            .CaptureStdErrTo(stdErr);
+            .WithArguments($"{CommandParam} \"exit 99\"")
+            .WithStdOutTarget(stdOut)
+            .WithStdErrTarget(stdErr);
 
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(CancellationToken)
@@ -61,13 +61,13 @@ public class ShellCommandFixture
         var stdErr = new StringBuilder();
 
         var executor = new ShellCommand(Command)
-            .WithRawArguments($"{CommandParam} \"echo {EchoEnvironmentVariable("customenvironmentvariable")}\"")
+            .WithArguments($"{CommandParam} \"echo {EchoEnvironmentVariable("customenvironmentvariable")}\"")
             .WithEnvironmentVariables(new Dictionary<string, string>
             {
                 { "customenvironmentvariable", "customvalue" }
             })
-            .CaptureStdOutTo(stdOut)
-            .CaptureStdErrTo(stdErr);
+            .WithStdOutTarget(stdOut)
+            .WithStdErrTarget(stdErr);
 
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(CancellationToken)
@@ -88,8 +88,8 @@ public class ShellCommandFixture
         var stdErr = new StringBuilder();
         // Starting a new instance of cmd.exe will run indefinitely waiting for user input
         var executor = new ShellCommand(Command)
-            .CaptureStdOutTo(stdOut)
-            .CaptureStdErrTo(stdErr);
+            .WithStdOutTarget(stdOut)
+            .WithStdErrTarget(stdErr);
 
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(cts.Token)
@@ -117,9 +117,9 @@ public class ShellCommandFixture
         var stdErr = new StringBuilder();
 
         var executor = new ShellCommand(Command)
-            .WithRawArguments($"{CommandParam} \"echo hello\"")
-            .CaptureStdOutTo(stdOut)
-            .CaptureStdErrTo(stdErr);
+            .WithArguments($"{CommandParam} \"echo hello\"")
+            .WithStdOutTarget(stdOut)
+            .WithStdErrTarget(stdErr);
 
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(CancellationToken)
@@ -137,12 +137,12 @@ public class ShellCommandFixture
         var errMessages = new List<string>();
 
         var executor = new ShellCommand(Command)
-            .WithRawArguments($"{CommandParam} \"echo hello\"")
-            .CaptureStdOutTo(line =>
+            .WithArguments($"{CommandParam} \"echo hello\"")
+            .WithStdOutTarget(line =>
             {
                 if (!string.IsNullOrWhiteSpace(line)) outMessages.Add(line);
             })
-            .CaptureStdErrTo(line =>
+            .WithStdErrTarget(line =>
             {
                 if (!string.IsNullOrWhiteSpace(line)) errMessages.Add(line);
             });
@@ -163,12 +163,12 @@ public class ShellCommandFixture
         var errMessages = new List<string>();
 
         var executor = new ShellCommand(Command)
-            .WithRawArguments($"{CommandParam} \"echo Something went wrong! 1>&2\"")
-            .CaptureStdOutTo(line =>
+            .WithArguments($"{CommandParam} \"echo Something went wrong! 1>&2\"")
+            .WithStdOutTarget(line =>
             {
                 if (!string.IsNullOrWhiteSpace(line)) outMessages.Add(line);
             })
-            .CaptureStdErrTo(line =>
+            .WithStdErrTarget(line =>
             {
                 if (!string.IsNullOrWhiteSpace(line)) errMessages.Add(line);
             });
@@ -190,17 +190,17 @@ public class ShellCommandFixture
         var outMessages = new List<string>();
 
         var executor = new ShellCommand(Command)
-            .WithRawArguments($"{CommandParam} \"echo hello&& echo goodbye\"")
-            .CaptureStdOutTo(line =>
+            .WithArguments($"{CommandParam} \"echo hello&& echo goodbye\"")
+            .WithStdOutTarget(line =>
             {
                 if (!string.IsNullOrWhiteSpace(line)) outMessages.Add($"FirstHook:{line}");
             })
-            .CaptureStdOutTo(outStringBuilder)
-            .CaptureStdOutTo(line =>
+            .WithStdOutTarget(outStringBuilder)
+            .WithStdOutTarget(line =>
             {
                 if (!string.IsNullOrWhiteSpace(line)) outMessages.Add($"SecondHook:{line}");
             })
-            .CaptureStdOutTo(outStringBuilder2);
+            .WithStdOutTarget(outStringBuilder2);
 
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(CancellationToken)
@@ -223,9 +223,9 @@ public class ShellCommandFixture
         var stdErr = new StringBuilder();
 
         var executor = new ShellCommand(Command)
-            .WithRawArguments(arguments)
-            .CaptureStdOutTo(stdOut)
-            .CaptureStdErrTo(stdErr);
+            .WithArguments(arguments)
+            .WithStdOutTarget(stdOut)
+            .WithStdErrTarget(stdErr);
 
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(CancellationToken)
@@ -243,9 +243,9 @@ public class ShellCommandFixture
         var stdErr = new StringBuilder();
 
         var executor = new ShellCommand(Command)
-            .WithArguments(CommandParam, "echo hello")
-            .CaptureStdOutTo(stdOut)
-            .CaptureStdErrTo(stdErr);
+            .WithArguments([CommandParam, "echo hello"])
+            .WithStdOutTarget(stdOut)
+            .WithStdErrTarget(stdErr);
 
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(CancellationToken)
@@ -281,8 +281,8 @@ public class ShellCommandFixture
 
             var executor = new ShellCommand(Command)
                 .WithArguments([..invocation, ..inputArgs])
-                .CaptureStdOutTo(stdOut)
-                .CaptureStdErrTo(stdErr);
+                .WithStdOutTarget(stdOut)
+                .WithStdErrTarget(stdErr);
 
             var result = behaviour == SyncBehaviour.Async
                 ? await executor.ExecuteAsync(CancellationToken)
@@ -317,68 +317,6 @@ public class ShellCommandFixture
                 // nothing to do if we can't delete the temp file
             }
         }
-    }
-
-    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
-    public async Task BeforeStartHooksRunInRegistrationOrder(SyncBehaviour behaviour)
-    {
-        var stdOut = new StringBuilder();
-        var stdErr = new StringBuilder();
-
-        var capturedArguments = new List<string>();
-
-        var executor = new ShellCommand(Command)
-            .BeforeStartHook(process =>
-            {
-                // this hook modifies the arguments
-                process.StartInfo.Arguments = process.StartInfo.Arguments.Replace("hello", "OLLEH");
-            })
-            .BeforeStartHook(process =>
-            {
-                // this hook doesn't modify anything, it just captures values so we can assert on them
-                capturedArguments.Add(process.StartInfo.Arguments);
-            })
-            .WithRawArguments($"{CommandParam} \"echo hello\"")
-            .CaptureStdOutTo(stdOut)
-            .CaptureStdErrTo(stdErr);
-
-        var result = behaviour == SyncBehaviour.Async
-            ? await executor.ExecuteAsync(CancellationToken)
-            : executor.Execute(CancellationToken);
-
-        capturedArguments.Should().Equal($"{CommandParam} \"echo OLLEH\"");
-
-        result.ExitCode.Should().Be(0, "the process should have run to completion");
-        stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
-        stdOut.ToString().Should().Contain("OLLEH");
-    }
-
-    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
-    public async Task AfterExitHooksRunInRegistrationOrder(SyncBehaviour behaviour)
-    {
-        var hookResults = new List<string>();
-
-        var executor = new ShellCommand(Command)
-            .AfterExitHook((exitCode, process) =>
-            {
-                hookResults.Add($"exitCode:{exitCode}, executable:{process.StartInfo.FileName}");
-            })
-            .AfterExitHook((exitCode, process) =>
-            {
-                hookResults.Add($"hook2 exitCode:{exitCode}, executable:{process.StartInfo.FileName}");
-            })
-            .WithRawArguments($"{CommandParam} \"echo hello\"");
-
-        var result = behaviour == SyncBehaviour.Async
-            ? await executor.ExecuteAsync(CancellationToken)
-            : executor.Execute(CancellationToken);
-
-        hookResults.Should()
-            .Equal(
-                $"exitCode:0, executable:{Command}",
-                $"hook2 exitCode:0, executable:{Command}");
-
-        result.ExitCode.Should().Be(0, "the process should have run to completion");
     }
 
     static string EchoEnvironmentVariable(string varName)

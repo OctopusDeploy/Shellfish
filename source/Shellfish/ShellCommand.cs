@@ -15,22 +15,12 @@ using static ShellCommandExecutorHelpers;
 public class ShellCommand(string executable)
 {
     readonly string executable = executable;
-    List<string>? commandLineArguments;
-    string? rawCommandLineArguments;
+    List<string>? argumentList;
+    string? argumentString;
     string? workingDirectory;
     Dictionary<string, string>? environmentVariables;
     NetworkCredential? windowsCredential;
     Encoding? outputEncoding;
-    List<Action<Process>>? beforeStartHooks;
-    List<Action<int, Process>>? afterExitHooks;
-
-    // The legacy ShellExecutor would unconditionally kill the process upon cancellation.
-    // We keep that default as it is the safest option for compaitbility, but it can be changed
-    bool shouldKillProcessOnCancellation = true;
-
-    // The legacy ShellExecutor would not throw an OperationCanceledException if CancellationToken was signaled.
-    // This is a bit weird and not standard for .NET, but we keep it as the default for compatibility.
-    bool shouldSwallowCancellationException = true;
 
     List<IOutputTarget>? stdOutTargets;
     List<IOutputTarget>? stdErrTargets;
@@ -41,63 +31,47 @@ public class ShellCommand(string executable)
         return this;
     }
 
-    public ShellCommand WithArguments(params string[] arguments)
+    /// <summary>
+    /// Allows you to supply a list of arguments which will be passed to Process.StartInfo.ArgumentList.
+    /// Arguments will be quoted if necessary, and escaped, so you can freely pass arguments with spaces in them or other similar complexities.
+    /// </summary>
+    public ShellCommand WithArguments(IEnumerable<string> argList)
     {
-        commandLineArguments ??= new List<string>();
-        commandLineArguments.Clear();
-        commandLineArguments.AddRange(arguments);
+        argumentList ??= new List<string>();
+        argumentList.Clear();
+        argumentList.AddRange(argList);
         return this;
     }
 
     /// <summary>
-    /// This allows you to set a callback which can inspect and modify the process before it is started.
-    /// You can use it for advanced use-cases or to build extensions on top of ShellCommand
+    /// Allows you to supply a string which will be passed directly to Process.StartInfo.Arguments.
+    /// The string will be passed directly without quoting or escaping, this can be useful if you have custom quoting requirements or other special needs.
     /// </summary>
-    public ShellCommand BeforeStartHook(Action<Process> hook)
+    public ShellCommand WithArguments(string argString)
     {
-        beforeStartHooks ??= new List<Action<Process>>();
-        beforeStartHooks.Add(hook);
+        argumentString = argString;
         return this;
     }
 
     /// <summary>
-    /// This allows you to set a callback which can inspect and modify the process after it exits.
-    /// You can use it for advanced use-cases or to build extensions on top of ShellCommand.
-    ///
-    /// The int parameter to the action receives the process exit code
+    /// Allows you to set additional environment variables for the launched process.
     /// </summary>
-    /// <remarks>
-    /// This is guaranteed to run, even if there was an exception thrown. Neither the exitCode nor the process may be valid in all situations.
-    /// </remarks>
-    public ShellCommand AfterExitHook(Action<int, Process> hook)
-    {
-        afterExitHooks ??= new List<Action<int, Process>>();
-        afterExitHooks.Add(hook);
-        return this;
-    }
-
-    /// <summary>
-    /// Allows you to supply a string which will be passed directly to Process.StartInfo.Arguments,
-    /// can be useful if you have custom quoting requirements or other special needs.
-    /// </summary>
-    public ShellCommand WithRawArguments(string rawArguments)
-    {
-        rawCommandLineArguments = rawArguments;
-        return this;
-    }
-
     public ShellCommand WithEnvironmentVariables(Dictionary<string, string> dictionary)
     {
         environmentVariables = dictionary;
         return this;
     }
 
+    /// <summary>
+    /// Runs the command as the given user.
+    /// Currently only supported on Windows
+    /// </summary>
+    /// <param name="credential">The credential representing the user account.</param>
 #if NET5_0_OR_GREATER
     [SupportedOSPlatform("Windows")]
 #endif
-    public ShellCommand RunAsUser(NetworkCredential credential)
+    public ShellCommand WithCredentials(NetworkCredential credential)
     {
-        // Note: "RunAsUser" name is generic because we could expand this to support unix in future. Right now it's just windows.
         windowsCredential = credential;
         return this;
     }
@@ -122,65 +96,127 @@ public class ShellCommand(string executable)
         return this;
     }
 
-    public ShellCommand CaptureStdOutTo(StringBuilder stringBuilder)
+    /// <summary>
+    /// Adds an output target for the standard output stream of the process.
+    /// Typically, an extension method like WithStdOutTarget(StringBuilder) or WithStdOutTarget(Action&lt;string&gt;) would be used over this. 
+    /// </summary>
+    public ShellCommand WithStdOutTarget(IOutputTarget target)
     {
         stdOutTargets ??= new List<IOutputTarget>();
-        stdOutTargets.Add(new CapturedStringBuilderTarget(stringBuilder));
+        stdOutTargets.Add(target);
         return this;
     }
-
-    public ShellCommand CaptureStdOutTo(Action<string> lineReceived)
-    {
-        stdOutTargets ??= new List<IOutputTarget>();
-        stdOutTargets.Add(new LineReceivedTarget(lineReceived));
-        return this;
-    }
-
-    public ShellCommand CaptureStdErrTo(StringBuilder stringBuilder)
+    
+    /// <summary>
+    /// Adds an output target for the standard error stream of the process.
+    /// Typically, an extension method like WithStdErrTarget(StringBuilder) or WithStdErrTarget(Action&lt;string&gt;) would be used over this. 
+    /// </summary>
+    public ShellCommand WithStdErrTarget(IOutputTarget target)
     {
         stdErrTargets ??= new List<IOutputTarget>();
-        stdErrTargets.Add(new CapturedStringBuilderTarget(stringBuilder));
+        stdErrTargets.Add(target);
         return this;
     }
 
-    public ShellCommand CaptureStdErrTo(Action<string> lineReceived)
+    public ShellCommandResult Execute(CancellationToken cancellationToken = default)
     {
-        stdErrTargets ??= new List<IOutputTarget>();
-        stdErrTargets.Add(new LineReceivedTarget(lineReceived));
-        return this;
+        if (string.IsNullOrWhiteSpace(executable)) throw new InvalidOperationException("No executable specified");
+
+        var process = new Process();
+        ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
+
+        var exitedEvent = AttachProcessExitedManualResetEvent(process, cancellationToken);
+        process.Start();
+
+        if (shouldBeginOutputRead) process.BeginOutputReadLine();
+        if (shouldBeginErrorRead) process.BeginErrorReadLine();
+
+        try
+        {
+            exitedEvent?.Wait(cancellationToken);
+
+            // Either: AttachProcessExitedManualResetEvent determined there was no cancellation to consider and exitedEvent is null.
+            // We can offload all the work to process.WaitForExit();
+            //
+            // Or: ExitEvent was signalled, but we still want to call process.WaitForExit; it waits for the StdErr and StdOut streams to flush.
+            // in a way that can we cannot easily do ourselves.  https://github.com/microsoft/referencesource/blob/51cf7850defa8a17d815b4700b67116e3fa283c2/System/services/monitoring/system/diagnosticts/Process.cs#L2453
+            // It should return very quickly.
+            FinalWaitForExit(process, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            if (shouldBeginOutputRead) process.CancelOutputRead();
+            if (shouldBeginErrorRead) process.CancelErrorRead();
+
+            // The legacy ShellExecutor would unconditionally kill the process upon cancellation.
+            // We keep that default as it is the safest option for compatibility
+            TryKillProcessAndChildrenRecursively(process);
+            
+            // The legacy ShellExecutor would not throw an OperationCanceledException if CancellationToken was signaled.
+            // This is a bit nonstandard for .NET, but we keep it as the default for compatibility.
+        }
+        
+        return new ShellCommandResult(SafelyGetExitCode(process));
     }
 
-    public ShellCommand KillProcessOnCancellation(bool shouldKill = true)
+    public async Task<ShellCommandResult> ExecuteAsync(CancellationToken cancellationToken = default)
     {
-        shouldKillProcessOnCancellation = shouldKill;
-        return this;
-    }
+        if (string.IsNullOrWhiteSpace(executable)) throw new InvalidOperationException("No executable specified");
 
-    public ShellCommand SwallowCancellationException(bool shouldSwallow = true)
-    {
-        shouldSwallowCancellationException = shouldSwallow;
-        return this;
-    }
+        var process = new Process();
+        ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
 
-    // sets standard flags on the Process that apply in all cases
+        var exitedTask = AttachProcessExitedTask(process, cancellationToken);
+        process.Start();
+
+        if (shouldBeginOutputRead) process.BeginOutputReadLine();
+        if (shouldBeginErrorRead) process.BeginErrorReadLine();
+
+        try
+        {
+            // tests deadlock on linux if we ConfigureAwait(false) here
+            await exitedTask.ConfigureAwait(true);
+
+            // Similarly to the sync version, We want to wait for the StdErr and StdOut streams to flush but cannot easily
+            // do this ourselves. https://github.com/dotnet/runtime/blob/e03b9a4692a15eb3ffbb637439241e8f8e5ca95f/src/libraries/System.Diagnostics.Process/src/System/Diagnostics/Process.cs#L1565
+            if (!cancellationToken.IsCancellationRequested) await FinalWaitForExitAsync(process, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            if (shouldBeginOutputRead) process.CancelOutputRead();
+            if (shouldBeginErrorRead) process.CancelErrorRead();
+
+            // The legacy ShellExecutor would unconditionally kill the process upon cancellation.
+            // We keep that default as it is the safest option for compatibility
+            TryKillProcessAndChildrenRecursively(process);
+            
+            // The legacy ShellExecutor did not throw an OperationCanceledException if CancellationToken was signaled.
+            // This is a bit nonstandard for .NET, but we keep it as the default for compatibility.
+        }
+
+        return new ShellCommandResult(SafelyGetExitCode(process));
+    }
+    
+    
+    // sets standard flags on the Process that apply for both Execute and ExecuteAsync
     void ConfigureProcess(Process process, out bool shouldBeginOutputRead, out bool shouldBeginErrorRead)
     {
         process.StartInfo.FileName = executable;
 
-        if (rawCommandLineArguments is not null && commandLineArguments is { Count: > 0 }) throw new InvalidOperationException("Cannot specify both raw arguments and arguments");
+        if (argumentString is not null && argumentList is { Count: > 0 }) throw new InvalidOperationException("Cannot specify both raw arguments and arguments");
 
-        if (rawCommandLineArguments is not null)
+        if (argumentString is not null)
         {
-            process.StartInfo.Arguments = rawCommandLineArguments;
+            process.StartInfo.Arguments = argumentString;
         }
-        else if (commandLineArguments is { Count: > 0 })
+        else if (argumentList is { Count: > 0 })
         {
 #if NET5_0_OR_GREATER
             // Prefer ArgumentList if we're on net5.0 or greater. Our polyfill should have the same behaviour, but
             // If we stick with the CLR we will pick up optimizations and bugfixes going forward
-            foreach (var arg in commandLineArguments) process.StartInfo.ArgumentList.Add(arg);
+            foreach (var arg in argumentList) process.StartInfo.ArgumentList.Add(arg);
 #else
-            process.StartInfo.Arguments = PasteArguments.JoinArguments(commandLineArguments);
+            process.StartInfo.Arguments = PasteArguments.JoinArguments(argumentList);
 #endif
         }
 
@@ -200,7 +236,7 @@ public class ShellCommand(string executable)
         }
         else // exec as the current user
         {
-            // Accessing the ProcessStartInfo.EnvironmentVariables dictionary will pre-load the environment variables for the current process
+            // Accessing the ProcessStartInfo.EnvironmentVariables dictionary will preload the environment variables for the current process
             // Then we'll add/overwrite with the customEnvironmentVariables
             if (environmentVariables is { Count: > 0 })
             {
@@ -222,7 +258,7 @@ public class ShellCommand(string executable)
             {
                 if (e.Data is null) return; // don't pass nulls along to the targets, it's an edge case that happens when the process exits
 
-                foreach (var target in targets) target.DataReceived(e.Data);
+                foreach (var target in targets) target.WriteLine(e.Data);
             };
         }
 
@@ -236,127 +272,26 @@ public class ShellCommand(string executable)
             {
                 if (e.Data is null) return; // don't pass nulls along to the targets, it's an edge case that happens when the process exits
 
-                foreach (var target in targets) target.DataReceived(e.Data);
+                foreach (var target in targets) target.WriteLine(e.Data);
             };
         }
     }
 
-    public ShellCommandResult Execute(CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(executable)) throw new InvalidOperationException("No executable specified");
-
-        var process = new Process();
-        ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
-
-        beforeStartHooks?.ForEach(hook => hook(process));
-
-        var exitedEvent = AttachProcessExitedManualResetEvent(process, cancellationToken);
-        process.Start();
-
-        if (shouldBeginOutputRead) process.BeginOutputReadLine();
-        if (shouldBeginErrorRead) process.BeginErrorReadLine();
-
-        try
-        {
-            exitedEvent?.Wait(cancellationToken);
-
-            // Either: AttachProcessExitedManualResetEvent determined there was no cancellation to consider and exitedEvent is null.
-            // We can offload all the work to process.WaitForExit();
-            //
-            // Or: ExitEvent was signalled, but we still want to call process.WaitForExit; it waits for the StdErr and StdOut streams to flush.
-            // in a way that can we cannot easily do ourselves.  https://github.com/microsoft/referencesource/blob/51cf7850defa8a17d815b4700b67116e3fa283c2/System/services/monitoring/system/diagnosticts/Process.cs#L2453
-            // It should return very quickly.
-            if (!cancellationToken.IsCancellationRequested) process.WaitForExit();
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            if (shouldBeginOutputRead) process.CancelOutputRead();
-            if (shouldBeginErrorRead) process.CancelErrorRead();
-
-            if (shouldKillProcessOnCancellation) TryKillProcessAndChildrenRecursively(process);
-            if (!shouldSwallowCancellationException) throw;
-        }
-        finally
-        {
-            if (afterExitHooks is not null)
-            {
-                var exitCode = SafelyGetExitCode(process);
-                foreach (var hook in afterExitHooks) hook(exitCode, process);
-            }
-        }
-
-        return new ShellCommandResult(SafelyGetExitCode(process));
-    }
-
-    public async Task<ShellCommandResult> ExecuteAsync(CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(executable)) throw new InvalidOperationException("No executable specified");
-
-        var process = new Process();
-        ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
-
-        beforeStartHooks?.ForEach(hook => hook(process));
-
-        var exitedTask = AttachProcessExitedTask(process, cancellationToken);
-        process.Start();
-
-        if (shouldBeginOutputRead) process.BeginOutputReadLine();
-        if (shouldBeginErrorRead) process.BeginErrorReadLine();
-
-        try
-        {
-            await exitedTask.ConfigureAwait(false);
-
-            // Similarly to the sync version, We want to wait for the StdErr and StdOut streams to flush but cannot easily
-            // do this ourselves. https://github.com/dotnet/runtime/blob/e03b9a4692a15eb3ffbb637439241e8f8e5ca95f/src/libraries/System.Diagnostics.Process/src/System/Diagnostics/Process.cs#L1565
-            if (!cancellationToken.IsCancellationRequested) await FinalWaitForExit(process, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            if (shouldBeginOutputRead) process.CancelOutputRead();
-            if (shouldBeginErrorRead) process.CancelErrorRead();
-
-            if (shouldKillProcessOnCancellation) TryKillProcessAndChildrenRecursively(process);
-            if (!shouldSwallowCancellationException) throw;
-        }
-        finally
-        {
-            if (afterExitHooks is not null)
-            {
-                var exitCode = SafelyGetExitCode(process);
-                foreach (var hook in afterExitHooks) hook(exitCode, process);
-            }
-        }
-
-        return new ShellCommandResult(SafelyGetExitCode(process));
-    }
-
-    static async Task FinalWaitForExit(Process process, CancellationToken cancellationToken)
+    static async Task FinalWaitForExitAsync(Process process, CancellationToken cancellationToken)
     {
 #if NET5_0_OR_GREATER // WaitForExitAsync was added in net5; we can't use it when targeting netstandard2.0 
         await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
 #else // Compatibility shim: This is a blocking WaitForExit, but the process should have already exited, it should not take any appreciable amount of time.
         await Task.CompletedTask;
-        process.WaitForExit();
+        FinalWaitForExit(process, cancellationToken);
 #endif
     }
 
-    interface IOutputTarget
+    static void FinalWaitForExit(Process process, CancellationToken cancellationToken)
     {
-        void DataReceived(string line);
-    }
-
-    class CapturedStringBuilderTarget(StringBuilder stringBuilder) : IOutputTarget
-    {
-        readonly StringBuilder stringBuilder = stringBuilder;
-
-        public void DataReceived(string line) => stringBuilder.AppendLine(line);
-    }
-
-    class LineReceivedTarget(Action<string> lineReceived) : IOutputTarget
-    {
-        readonly Action<string> lineReceived = lineReceived;
-
-        public void DataReceived(string line) => lineReceived(line);
+        while (!cancellationToken.IsCancellationRequested && !process.WaitForExit(50))
+        {
+            // quick loop just in case WaitForExit gets stuck preventing us from cancelling.
+        }
     }
 }
