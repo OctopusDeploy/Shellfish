@@ -1,4 +1,3 @@
-Octopus.Shellfish.CallbackOutputTarget.WriteLine
 Octopus.Shellfish.ShellCommandExtensionMethods.WithStdOutTarget
 Octopus.Shellfish.ShellCommandExtensionMethods.WithStdErrTarget
 Octopus.Shellfish.ShellCommandExtensionMethods.WithStdOutTarget
@@ -19,4 +18,3 @@ Octopus.Shellfish.ShellExecutionException.Errors
 Octopus.Shellfish.ShellExecutionException.Message
 Octopus.Shellfish.ShellExecutor.ExecuteCommand
 Octopus.Shellfish.ShellExecutor.ExecuteCommandWithoutWaiting
-Octopus.Shellfish.StringBuilderOutputTarget.WriteLine

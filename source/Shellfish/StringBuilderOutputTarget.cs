@@ -2,7 +2,7 @@
 
 namespace Octopus.Shellfish;
 
-public class StringBuilderOutputTarget(StringBuilder stringBuilder) : IOutputTarget
+class StringBuilderOutputTarget(StringBuilder stringBuilder) : IOutputTarget
 {
     readonly StringBuilder stringBuilder = stringBuilder;
 

@@ -12,12 +12,11 @@ namespace Octopus.Shellfish;
 using static ShellCommandExecutorHelpers;
 
 /// <summary>
-/// A fluent wrapper over System.Diagnostics.Process which makes it much easier to use.
+/// A fluent-builder style utility designed to easily let you execute shell commands.
 /// </summary>
-/// <param name="executable">The executable to run.</param>
-public class ShellCommand(string executable)
+public class ShellCommand
 {
-    readonly string executable = executable;
+    readonly string executable;
     List<string>? argumentList;
     string? argumentString;
     string? workingDirectory;
@@ -27,6 +26,12 @@ public class ShellCommand(string executable)
 
     List<IOutputTarget>? stdOutTargets;
     List<IOutputTarget>? stdErrTargets;
+    
+    public ShellCommand(string executable)
+    {
+        if(string.IsNullOrWhiteSpace(executable)) throw new ArgumentException("Executable must be a valid non-whitespace string.", nameof(executable));
+        this.executable = executable;
+    }
 
     /// <summary>
     /// Allows you to specify the working directory for the process.
@@ -43,8 +48,8 @@ public class ShellCommand(string executable)
     }
 
     /// <summary>
-    /// Allows you to supply a list of arguments which will be passed to Process.StartInfo.ArgumentList.
-    /// Arguments will be quoted if necessary, and escaped, so you can freely pass arguments with spaces in them or other similar complexities.
+    /// Allows you to supply a list of individual string arguments.
+    /// Arguments will be quoted and escaped if necessary, so you can freely pass arguments with spaces or special characters.
     /// </summary>
     public ShellCommand WithArguments(IEnumerable<string> argList)
     {
@@ -55,8 +60,8 @@ public class ShellCommand(string executable)
     }
 
     /// <summary>
-    /// Allows you to supply a string which will be passed directly to Process.StartInfo.Arguments.
-    /// The string will be passed directly without quoting or escaping. This can be useful if you have custom quoting requirements or other special needs.
+    /// Allows you to supply a single argument string which will be used directly.
+    /// No quoting or escaping of any spaces or special characters will be performed.
     /// </summary>
     public ShellCommand WithArguments(string argString)
     {
@@ -134,8 +139,6 @@ public class ShellCommand(string executable)
     /// </summary>
     public ShellCommandResult Execute(CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(executable)) throw new InvalidOperationException("No executable specified");
-
         var process = new Process();
         ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
 
@@ -178,8 +181,6 @@ public class ShellCommand(string executable)
     /// </summary>
     public async Task<ShellCommandResult> ExecuteAsync(CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(executable)) throw new InvalidOperationException("No executable specified");
-
         var process = new Process();
         ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
 

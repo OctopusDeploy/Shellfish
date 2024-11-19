@@ -2,7 +2,7 @@
 
 namespace Octopus.Shellfish;
 
-public class CallbackOutputTarget(Action<string> callback) : IOutputTarget
+class CallbackOutputTarget(Action<string> callback) : IOutputTarget
 {
     readonly Action<string> callback = callback;
 
