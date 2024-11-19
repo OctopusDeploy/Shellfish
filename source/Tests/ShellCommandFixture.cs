@@ -60,12 +60,14 @@ public class ShellCommandFixture
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
+        IReadOnlyDictionary<string, string> envVars = new Dictionary<string, string>
+        {
+            { "customenvironmentvariable", "customvalue" }
+        };
+
         var executor = new ShellCommand(Command)
             .WithArguments($"{CommandParam} \"echo {EchoEnvironmentVariable("customenvironmentvariable")}\"")
-            .WithEnvironmentVariables(new Dictionary<string, string>
-            {
-                { "customenvironmentvariable", "customvalue" }
-            })
+            .WithEnvironmentVariables(envVars)
             .WithStdOutTarget(stdOut)
             .WithStdErrTarget(stdErr);
 
@@ -81,8 +83,9 @@ public class ShellCommandFixture
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
     public async Task CancellationToken_ShouldForceKillTheProcess(SyncBehaviour behaviour)
     {
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken);
         // Terminate the process after a very short time so the test doesn't run forever
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+        cts.CancelAfter(TimeSpan.FromSeconds(1));
 
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
@@ -211,6 +214,104 @@ public class ShellCommandFixture
         outStringBuilder.ToString().Should().Be("hello" + Environment.NewLine + "goodbye" + Environment.NewLine);
         outStringBuilder2.ToString().Should().Be("hello" + Environment.NewLine + "goodbye" + Environment.NewLine);
     }
+    
+    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    public async Task StreamingStdInputShouldWork(SyncBehaviour behaviour)
+    {
+        using var tempScript = CreateTempScript(
+            windows:
+            """
+            @echo off
+            echo Enter Name:
+            set /p name=
+            echo Hello %name%
+            """,
+            bash:
+            """
+            echo "Enter Name:"
+            read name
+            echo "Hello $name"
+            """);
+        
+        var stdOut = new StringBuilder();
+        var stdErr = new StringBuilder();
+
+        // when running cmd.exe we need /c to tell it to run the script; bash doesn't want any preamble for a script file
+        string[] args = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? ["/c", tempScript.ScriptPath]
+            : [tempScript.ScriptPath];
+
+        // it's going to ask us for the name first, so we need to answer back or the process will stall forever
+        var stream = new MemoryStream(Encoding.UTF8.GetBytes(
+            """
+            Octobob
+            """));
+        
+        var executor = new ShellCommand(Command)
+            .WithArguments(args)
+            .WithStdIn(stream)
+            .WithStdOutTarget(stdOut)
+            .WithStdErrTarget(stdErr);
+        
+        var result = behaviour == SyncBehaviour.Async
+            ? await executor.ExecuteAsync(CancellationToken)
+            : executor.Execute(CancellationToken);
+
+        result.ExitCode.Should().Be(0, "the process should have run to completion");
+        stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
+        stdOut.ToString().Should().Be("Enter Name:" + Environment.NewLine + "Hello Octobob" + Environment.NewLine);
+    }
+    
+    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    public async Task StreamingStdInputShouldBeCancellable(SyncBehaviour behaviour)
+    {
+        using var tempScript = CreateTempScript(
+            windows:
+            """
+            @echo off
+            echo Enter Name:
+            set /p name=
+            echo Hello %name%
+            """,
+            bash:
+            """
+            echo "Enter Name:"
+            read name
+            echo "Hello $name"
+            """);
+        
+        var stdOut = new StringBuilder();
+        var stdErr = new StringBuilder();
+
+        // when running cmd.exe we need /c to tell it to run the script; bash doesn't want any preamble for a script file
+        string[] args = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? ["/c", tempScript.ScriptPath]
+            : [tempScript.ScriptPath];
+
+        // it's going to ask us for the name first, but we don't give it anything; the script should hang
+        var stream = new SlowStream(TimeSpan.FromSeconds(10));
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken);
+        
+        var executor = new ShellCommand(Command)
+            .WithArguments(args)
+            .WithStdIn(stream)
+            .WithStdOutTarget(stdOut)
+            .WithStdOutTarget(l =>
+            {
+                // when we receive the first prompt, cancel and kill the process
+                if(l.Contains("Enter Name:")) cts.Cancel();
+            })
+            .WithStdErrTarget(stdErr);
+        
+        var result = behaviour == SyncBehaviour.Async
+            ? await executor.ExecuteAsync(cts.Token)
+            : executor.Execute(cts.Token);
+
+        result.ExitCode.Should().Be(-1, "the process should have been killed");
+        stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
+        stdOut.ToString().Should().Be("Enter Name:" + Environment.NewLine);
+    }
 
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
     public async Task RunAsCurrentUser_ShouldWork(SyncBehaviour behaviour)
@@ -260,57 +361,96 @@ public class ShellCommandFixture
     public async Task ArgumentArrayHandlingShouldBeCorrect(SyncBehaviour behaviour)
     {
         using var assertionScope = new AssertionScope();
-        var tempScript = CreateScriptWhichEchoesBackArguments();
-        try
-        {
-            var stdOut = new StringBuilder();
-            var stdErr = new StringBuilder();
+        using var tempScript = CreateTempScript(
+            windows:
+            """
+            @echo off
+            setlocal enabledelayedexpansion
+            for %%A in (%*) do (
+                echo %%~A
+            )
+            """,
+            bash:
+            """
+            for arg in "$@"; do
+                echo "$arg"
+            done
+            """);
 
-            string[] inputArgs =
+        var stdOut = new StringBuilder();
+        var stdErr = new StringBuilder();
+
+        string[] inputArgs =
+        [
+            "apple",
+            "banana split",
+            "--thing=\"quotedValue\"",
+            "cherry"
+        ];
+
+        // when running cmd.exe we need /c to tell it to run the script; bash doesn't want any preamble for a script file
+        string[] invocation = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? ["/c", tempScript.ScriptPath]
+            : [tempScript.ScriptPath];
+
+        var executor = new ShellCommand(Command)
+            .WithArguments([..invocation, ..inputArgs])
+            .WithStdOutTarget(stdOut)
+            .WithStdErrTarget(stdErr);
+
+        var result = behaviour == SyncBehaviour.Async
+            ? await executor.ExecuteAsync(CancellationToken)
+            : executor.Execute(CancellationToken);
+
+        result.ExitCode.Should().Be(0, "the process should have run to completion");
+        stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
+
+        var expectedQuotedValue = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? "--thing=\\\"quotedValue\\\"" // on windows echo adds extra quoting; this is an artifact of cmd.exe not our code 
+            : "--thing=\"quotedValue\"";
+
+        stdOut.ToString()
+            .Should()
+            .Be(string.Join(Environment.NewLine,
             [
                 "apple",
-                "banana split",
-                "--thing=\"quotedValue\"",
-                "cherry"
-            ];
+                "banana split", // spaces should be preserved
+                expectedQuotedValue,
+                "cherry",
+                "" // it has a trailing newline at the end
+            ]));
+    }
 
-            // when running cmd.exe we need /c to tell it to run the script; bash doesn't want any preamble for a script file
-            string[] invocation = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                ? ["/c", tempScript]
-                : [tempScript];
+    static string EchoEnvironmentVariable(string varName)
+        => RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? $"%{varName}%" : $"${varName}";
 
-            var executor = new ShellCommand(Command)
-                .WithArguments([..invocation, ..inputArgs])
-                .WithStdOutTarget(stdOut)
-                .WithStdErrTarget(stdErr);
-
-            var result = behaviour == SyncBehaviour.Async
-                ? await executor.ExecuteAsync(CancellationToken)
-                : executor.Execute(CancellationToken);
-
-            result.ExitCode.Should().Be(0, "the process should have run to completion");
-            stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
-
-            var expectedQuotedValue = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                ? "--thing=\\\"quotedValue\\\"" // on windows echo adds extra quoting; this is an artifact of cmd.exe not our code 
-                : "--thing=\"quotedValue\"";
-
-            stdOut.ToString()
-                .Should()
-                .Be(string.Join(Environment.NewLine,
-                [
-                    "apple",
-                    "banana split", // spaces should be preserved
-                    expectedQuotedValue,
-                    "cherry",
-                    "" // it has a trailing newline at the end
-                ]));
+    // Some interactions such as stdout or encoding codepages require things that don't work with an inline cmd /c or bash -c command
+    // This helper writes a script file into the temp directory so we can exercise more complex scenarios
+    static TempScriptHandle CreateTempScript(string windows, string bash)
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".cmd");
+            File.WriteAllText(tempFile, windows);
+            return new TempScriptHandle(tempFile);
         }
-        finally
+        else
+        {
+            var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sh");
+            File.WriteAllText(tempFile, bash.Replace("\r\n", "\n"));
+            return new TempScriptHandle(tempFile);
+        }
+    }
+
+    class TempScriptHandle(string scriptPath) : IDisposable
+    {
+        public string ScriptPath { get; } = scriptPath;
+
+        public void Dispose()
         {
             try
             {
-                File.Delete(tempScript);
+                File.Delete(ScriptPath);
             }
             catch
             {
@@ -318,38 +458,35 @@ public class ShellCommandFixture
             }
         }
     }
-
-    static string EchoEnvironmentVariable(string varName)
-        => RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? $"%{varName}%" : $"${varName}";
-
-    // Creates a script (.cmd or .sh) in the temp directory which echoes back its given command line arguments,
-    // each on a newline, so we can use this to test how arguments are passed to the shell.
-    // This function returns the path to the temporary script file.
-    static string CreateScriptWhichEchoesBackArguments()
+    
+    class SlowStream(TimeSpan sleepOnReadDuration) : Stream
     {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        public override void Flush()
         {
-            var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".cmd");
-            File.WriteAllText(tempFile,
-                """
-                @echo off
-                setlocal enabledelayedexpansion
-                for %%A in (%*) do (
-                    echo %%~A
-                )
-                """);
-            return tempFile;
         }
-        else
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotImplementedException();
+
+        public override void SetLength(long value) => throw new NotImplementedException();
+
+        public override int Read(byte[] buffer, int offset, int count)
         {
-            var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sh");
-            File.WriteAllText(tempFile,
-                """
-                    for arg in "$@"; do
-                        echo "$arg"
-                    done
-                    """.Replace("\r\n", "\n"));
-            return tempFile;
+            Thread.Sleep(sleepOnReadDuration);
+            return 0;
         }
+
+        public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            await Task.Delay(sleepOnReadDuration, cancellationToken);
+            return 0;
+        }
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotImplementedException();
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => 0;
+        public override long Position { get; set; }
     }
 }

@@ -11,6 +11,7 @@ Octopus.Shellfish.ShellCommand.WithCredentials
 Octopus.Shellfish.ShellCommand.WithOutputEncoding
 Octopus.Shellfish.ShellCommand.WithStdOutTarget
 Octopus.Shellfish.ShellCommand.WithStdErrTarget
+Octopus.Shellfish.ShellCommand.WithStdIn
 Octopus.Shellfish.ShellCommand.Execute
 Octopus.Shellfish.ShellCommand.ExecuteAsync
 Octopus.Shellfish.ShellCommandResult.ExitCode

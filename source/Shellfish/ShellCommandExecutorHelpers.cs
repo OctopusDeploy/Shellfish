@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -108,31 +109,71 @@ public static class ShellCommandExecutorHelpers
     
     #endif
     
-    internal static Task WaitForExitInNewThread(Process process, CancellationToken cancellationToken)
+    /// <summary>
+    /// Read from inputStream and write to the standard input while the process is alive.
+    /// </summary>
+#if NET5_0_OR_GREATER
+    internal static void StartStreamingInput(Process process, Stream inputStream, CancellationToken cancellationToken)
     {
-        var tcs = new TaskCompletionSource<bool>();
-
-        var registration = cancellationToken.Register(() =>
-        {
-            tcs.TrySetCanceled();
-        });
-
-        new Thread(() =>
+        var buffer = new char[4096];
+        Task.Run(async () =>
         {
             try
             {
-                process.WaitForExit();
-                tcs.TrySetResult(true);
-            }
-            catch (Exception e)
-            {
-                tcs.TrySetException(e);
+                using var reader = new StreamReader(inputStream);
+                while (!process.HasExited && !cancellationToken.IsCancellationRequested)
+                {
+                    var charsRead = await reader.ReadAsync(buffer, cancellationToken);
+                    if (charsRead == 0)
+                    {
+                        // We have reached the end of the stream.
+                        return;
+                    }
+
+                    await process.StandardInput.WriteAsync(new ReadOnlyMemory<char>(buffer, 0, charsRead), cancellationToken);
+                    await process.StandardInput.FlushAsync(cancellationToken);
+                }
             }
             finally
             {
-                registration.Dispose();
+                await process.StandardInput.FlushAsync(cancellationToken);
+                process.StandardInput.Close();
             }
-        }).Start();
-        return tcs.Task;
+        }, cancellationToken);
     }
+#else
+    internal static void StartStreamingInput(Process process, Stream inputStream, CancellationToken cancellationToken)
+    {
+        var buffer = new char[4096];
+        Task.Run(async () =>
+        {
+            try
+            {
+                using var reader = new StreamReader(inputStream);
+                
+                // async stream methods do not support cancellation in netstandard2.0
+                // Our best-effort solution is to close the reader when the cancellation token is triggered, thus forcing ReadAsync to terminate early.
+                cancellationToken.Register(() => reader.Dispose());
+                
+                while (!process.HasExited && !cancellationToken.IsCancellationRequested)
+                {
+                    var charsRead = await reader.ReadAsync(buffer, 0, buffer.Length);
+                    if (charsRead == 0)
+                    {
+                        // We have reached the end of the stream.
+                        return;
+                    }
+
+                    await process.StandardInput.WriteAsync(buffer, 0, charsRead);
+                    await process.StandardInput.FlushAsync();
+                }
+            }
+            finally
+            {
+                await process.StandardInput.FlushAsync();
+                process.StandardInput.Close();
+            }
+        }, cancellationToken);
+    }
+#endif
 }

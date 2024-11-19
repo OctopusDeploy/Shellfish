@@ -8,7 +8,7 @@ namespace Octopus.Shellfish
 {
     interface IXPlatAdapter
     {
-        void ConfigureStartInfoForUser(ProcessStartInfo startInfo, NetworkCredential runAs, IDictionary<string, string>? customEnvironmentVariables);
+        void ConfigureStartInfoForUser(ProcessStartInfo startInfo, NetworkCredential runAs, IReadOnlyDictionary<string, string>? customEnvironmentVariables);
         void TryKillProcessAndChildrenRecursively(Process process);
         Encoding GetOemEncoding();
     }
