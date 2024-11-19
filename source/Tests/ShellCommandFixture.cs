@@ -214,25 +214,23 @@ public class ShellCommandFixture
         outStringBuilder.ToString().Should().Be("hello" + Environment.NewLine + "goodbye" + Environment.NewLine);
         outStringBuilder2.ToString().Should().Be("hello" + Environment.NewLine + "goodbye" + Environment.NewLine);
     }
-    
+
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
     public async Task StreamingStdInputShouldWork(SyncBehaviour behaviour)
     {
         using var tempScript = CreateTempScript(
-            windows:
-            """
-            @echo off
-            echo Enter Name:
-            set /p name=
-            echo Hello %name%
-            """,
-            bash:
-            """
-            echo "Enter Name:"
-            read name
-            echo "Hello $name"
-            """);
-        
+            cmd: """
+                 @echo off
+                 echo Enter Name:
+                 set /p name=
+                 echo Hello %name%
+                 """,
+            sh: """
+                echo "Enter Name:"
+                read name
+                echo "Hello $name"
+                """);
+
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
@@ -246,13 +244,13 @@ public class ShellCommandFixture
             """
             Octobob
             """));
-        
+
         var executor = new ShellCommand(Command)
             .WithArguments(args)
             .WithStdIn(stream)
             .WithStdOutTarget(stdOut)
             .WithStdErrTarget(stdErr);
-        
+
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(CancellationToken)
             : executor.Execute(CancellationToken);
@@ -261,25 +259,23 @@ public class ShellCommandFixture
         stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
         stdOut.ToString().Should().Be("Enter Name:" + Environment.NewLine + "Hello Octobob" + Environment.NewLine);
     }
-    
+
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
     public async Task StreamingStdInputShouldBeCancellable(SyncBehaviour behaviour)
     {
         using var tempScript = CreateTempScript(
-            windows:
-            """
-            @echo off
-            echo Enter Name:
-            set /p name=
-            echo Hello %name%
-            """,
-            bash:
-            """
-            echo "Enter Name:"
-            read name
-            echo "Hello $name"
-            """);
-        
+            cmd: """
+                 @echo off
+                 echo Enter Name:
+                 set /p name=
+                 echo Hello %name%
+                 """,
+            sh: """
+                echo "Enter Name:"
+                read name
+                echo "Hello $name"
+                """);
+
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
@@ -292,7 +288,7 @@ public class ShellCommandFixture
         var stream = new SlowStream(TimeSpan.FromSeconds(10));
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken);
-        
+
         var executor = new ShellCommand(Command)
             .WithArguments(args)
             .WithStdIn(stream)
@@ -300,10 +296,10 @@ public class ShellCommandFixture
             .WithStdOutTarget(l =>
             {
                 // when we receive the first prompt, cancel and kill the process
-                if(l.Contains("Enter Name:")) cts.Cancel();
+                if (l.Contains("Enter Name:")) cts.Cancel();
             })
             .WithStdErrTarget(stdErr);
-        
+
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(cts.Token)
             : executor.Execute(cts.Token);
@@ -362,20 +358,18 @@ public class ShellCommandFixture
     {
         using var assertionScope = new AssertionScope();
         using var tempScript = CreateTempScript(
-            windows:
-            """
-            @echo off
-            setlocal enabledelayedexpansion
-            for %%A in (%*) do (
-                echo %%~A
-            )
-            """,
-            bash:
-            """
-            for arg in "$@"; do
-                echo "$arg"
-            done
-            """);
+            cmd: """
+                 @echo off
+                 setlocal enabledelayedexpansion
+                 for %%A in (%*) do (
+                     echo %%~A
+                 )
+                 """,
+            sh: """
+                for arg in "$@"; do
+                    echo "$arg"
+                done
+                """);
 
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
@@ -426,18 +420,18 @@ public class ShellCommandFixture
 
     // Some interactions such as stdout or encoding codepages require things that don't work with an inline cmd /c or bash -c command
     // This helper writes a script file into the temp directory so we can exercise more complex scenarios
-    static TempScriptHandle CreateTempScript(string windows, string bash)
+    static TempScriptHandle CreateTempScript(string cmd, string sh)
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".cmd");
-            File.WriteAllText(tempFile, windows);
+            File.WriteAllText(tempFile, cmd);
             return new TempScriptHandle(tempFile);
         }
         else
         {
             var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sh");
-            File.WriteAllText(tempFile, bash.Replace("\r\n", "\n"));
+            File.WriteAllText(tempFile, sh.Replace("\r\n", "\n"));
             return new TempScriptHandle(tempFile);
         }
     }
@@ -458,7 +452,7 @@ public class ShellCommandFixture
             }
         }
     }
-    
+
     class SlowStream(TimeSpan sleepOnReadDuration) : Stream
     {
         public override void Flush()

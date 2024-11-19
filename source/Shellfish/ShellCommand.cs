@@ -233,11 +233,7 @@ public class ShellCommand
             // This doesn't really matter, but it's not particularly graceful so let's stop the input streaming first
             if (cancelStreamingInput != null)
             {
-#if NET5_0_OR_GREATER
-                await cancelStreamingInput.CancelAsync();
-#else
-                cancelStreamingInput.Cancel();
-#endif
+                cancelStreamingInput.Cancel(); // .NET 8 suggests CancelAsync, but we know there are no async things attached to this Token so there's no value in it.
                 cancelStreamingInput = null;
             }
 
@@ -253,14 +249,7 @@ public class ShellCommand
         }
         finally
         {
-            if (cancelStreamingInput != null)
-            {
-#if NET5_0_OR_GREATER
-                await cancelStreamingInput.CancelAsync();
-#else
-                cancelStreamingInput.Cancel();
-#endif
-            }
+            cancelStreamingInput?.Cancel();
         }
 
         return new ShellCommandResult(SafelyGetExitCode(process));
@@ -363,10 +352,10 @@ public class ShellCommand
         if (shouldBeginErrorRead) process.BeginErrorReadLine();
 
         CancellationTokenSource? cancelStreamingInput = null;
-        if (shouldBeginInputStream)
+        if (shouldBeginInputStream && stdInStream != null)
         {
             cancelStreamingInput = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            StartStreamingInput(process, stdInStream!, cancelStreamingInput.Token);
+            StartStreamingInput(process, stdInStream, cancelStreamingInput.Token);
         }
 
         return cancelStreamingInput;
