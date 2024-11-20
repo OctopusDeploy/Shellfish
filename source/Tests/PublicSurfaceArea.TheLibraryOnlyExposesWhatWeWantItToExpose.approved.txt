@@ -4,6 +4,10 @@ Octopus.Shellfish.ShellCommandExtensionMethods.WithStdErrTarget
 Octopus.Shellfish.ShellCommandExtensionMethods.WithStdOutTarget
 Octopus.Shellfish.ShellCommandExtensionMethods.WithStdErrTarget
 Octopus.Shellfish.IInputSource.Subscribe
+Octopus.Shellfish.IInputSourceObserver.OnNext
+Octopus.Shellfish.IInputSourceObserver.OnCompleted
+Octopus.Shellfish.InputQueue.OnNext
+Octopus.Shellfish.InputQueue.OnCompleted
 Octopus.Shellfish.IOutputTarget.WriteLine
 Octopus.Shellfish.ShellCommand.WithWorkingDirectory
 Octopus.Shellfish.ShellCommand.WithArguments

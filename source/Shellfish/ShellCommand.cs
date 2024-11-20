@@ -339,26 +339,21 @@ public class ShellCommand
 
         if (shouldBeginInput && stdInSource != null)
         {
-            // If process.StandardInput.WriteLine blocks, then we could inadvertently block the caller.
-            // Should we thread-jump to avoid this? Such a thing could result in out-of-order writes.
-            // Our uses at the moment are not complex enough to warrant this, perhaps something to revisit in future.
-            var unsubscribe = stdInSource.Subscribe(line =>
-            {
-                process.StandardInput.WriteLine(line);
-                process.StandardInput.Flush();
-            });
-            return new CloseStandardInputDisposable(process, unsubscribe);
+            var inputQueue = new InputQueue(process.StandardInput);
+            var unsubscribe = stdInSource.Subscribe(inputQueue);
+            return new StopInputStreamDisposable(inputQueue, unsubscribe);
         }
 
         return null;
     }
 
-    sealed class CloseStandardInputDisposable(Process process, IDisposable additionalDisposable) : IDisposable
+    sealed class StopInputStreamDisposable(InputQueue inputQueue, IDisposable additionalDisposable) : IDisposable
     {
         public void Dispose()
         {
-            process.StandardInput.Flush();
-            process.StandardInput.Close();
+            // tell the input queue to shut itself down
+            inputQueue.OnCompleted();
+            // do whatever other work might be attached
             additionalDisposable.Dispose();
         }
     }

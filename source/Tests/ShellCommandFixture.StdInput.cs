@@ -96,6 +96,53 @@ public class ShellCommandFixtureStdInput
     }
     
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    public async Task ClosingStdInEarly(SyncBehaviour behaviour)
+    {
+        using var tempScript = TempScript.Create(
+            cmd: """
+                 @echo off
+                 echo Enter First Name:
+                 set /p firstname=
+                 echo Enter Last Name:
+                 set /p lastname=
+                 echo Hello %firstname% %lastname%
+                 """,
+            sh: """
+                echo "Enter First Name:"
+                read firstname
+                echo "Enter Last Name:"
+                read lastname
+                echo "Hello $firstname $lastname"
+                """);
+
+        var stdOut = new StringBuilder();
+        var stdErr = new StringBuilder();
+        
+        // it's going to ask us for the names, we need to answer back or the process will stall forever; we can preload this
+        var stdIn = new TestInputSource();
+
+        var executor = new ShellCommand(tempScript.GetHostExecutable())
+            .WithArguments(tempScript.GetCommandArgs())
+            .WithStdInSource(stdIn)
+            .WithStdOutTarget(stdOut)
+            .WithStdOutTarget(l =>
+            {
+                if (l.Contains("First")) stdIn.OnNext("Bob");
+                if (l.Contains("Last")) stdIn.OnCompleted(); // shut it down
+            })
+            .WithStdErrTarget(stdErr);
+
+        var result = behaviour == SyncBehaviour.Async
+            ? await executor.ExecuteAsync(CancellationToken)
+            : executor.Execute(CancellationToken);
+
+        result.ExitCode.Should().Be(0, "the process should have run to completion");
+        stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
+        // When we close stdin the waiting process receives an EOF; Our trivial shell script interprets this as an empty string
+        stdOut.ToString().Should().Be("Enter First Name:" + Environment.NewLine + "Enter Last Name:" + Environment.NewLine + "Hello Bob " + Environment.NewLine);
+    }
+    
+    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
     public async Task ShouldReleaseInputSourceWhenProgramExits(SyncBehaviour behaviour)
     {
         using var tempScript = TempScript.Create(
@@ -196,18 +243,23 @@ public class ShellCommandFixtureStdInput
     class TestInputSource : IInputSource, IDisposable
     {
         // make the subscriber public so tests can verify it
-        public Action<string>? Subscriber { get; private set; }
+        public IInputSourceObserver? Subscriber { get; private set; }
 
-        public IDisposable Subscribe(Action<string> onNext)
+        public IDisposable Subscribe(IInputSourceObserver observer)
         {
             if (Subscriber != null) throw new InvalidOperationException("Only one subscriber is allowed");
-            Subscriber = onNext;
+            Subscriber = observer;
             return this;
         }
 
         public void OnNext(string line)
         {
-            Subscriber?.Invoke(line);
+            Subscriber?.OnNext(line);
+        }
+        
+        public void OnCompleted()
+        {
+            Subscriber?.OnCompleted();
         }
 
         public void Dispose()

@@ -8,9 +8,10 @@ namespace Octopus.Shellfish;
 // it later asks for a second input line. This is really only useful for one-shot inputs, not interactive things
 class BufferedInputSource(string inputLine) : IInputSource, IDisposable
 {
-    public IDisposable Subscribe(Action<string> onNext)
+    public IDisposable Subscribe(IInputSourceObserver observer)
     {
-        onNext(inputLine);
+        observer.OnNext(inputLine);
+        observer.OnCompleted();
         return this;
     }
 
