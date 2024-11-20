@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Net;
 using System.Runtime.Versioning;
 using System.Text;
@@ -27,7 +26,6 @@ public class ShellCommand
 
     List<IOutputTarget>? stdOutTargets;
     List<IOutputTarget>? stdErrTargets;
-    Stream? stdInStream;
 
     public ShellCommand(string executable)
     {
@@ -140,28 +138,18 @@ public class ShellCommand
         return this;
     }
 
-    public ShellCommand WithStdIn(Stream stream)
-    {
-        stdInStream = stream;
-        return this;
-    }
-
     /// <summary>
     /// Launches the process and synchronously waits for it to exit.
     /// </summary>
     public ShellCommandResult Execute(CancellationToken cancellationToken = default)
     {
         using var process = new Process();
-        ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead, out var shouldBeginInputStream);
+        ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
 
         var exitedEvent = AttachProcessExitedManualResetEvent(process, cancellationToken);
         process.Start();
 
-        var cancelStreamingInput = BeginIoStreams(process,
-            shouldBeginOutputRead,
-            shouldBeginErrorRead,
-            shouldBeginInputStream,
-            cancellationToken);
+        BeginIoStreams(process, shouldBeginOutputRead, shouldBeginErrorRead);
 
         try
         {
@@ -177,14 +165,6 @@ public class ShellCommand
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // if we kill the process before cancelling input, it may observe some exceptions.
-            // This doesn't really matter, but it's not particularly graceful so let's stop the input streaming first
-            if (cancelStreamingInput != null)
-            {
-                cancelStreamingInput.Cancel();
-                cancelStreamingInput = null;
-            }
-
             if (shouldBeginOutputRead) process.CancelOutputRead();
             if (shouldBeginErrorRead) process.CancelErrorRead();
 
@@ -194,10 +174,6 @@ public class ShellCommand
 
             // Do not rethrow; The legacy ShellExecutor didn't throw an OperationCanceledException if CancellationToken was signaled.
             // This is a bit nonstandard for .NET, but we keep it as the default for compatibility.
-        }
-        finally
-        {
-            cancelStreamingInput?.Cancel();
         }
 
         return new ShellCommandResult(SafelyGetExitCode(process));
@@ -209,16 +185,12 @@ public class ShellCommand
     public async Task<ShellCommandResult> ExecuteAsync(CancellationToken cancellationToken = default)
     {
         using var process = new Process();
-        ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead, out var shouldBeginInputStream);
+        ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
 
         var exitedTask = AttachProcessExitedTask(process, cancellationToken);
         process.Start();
 
-        var cancelStreamingInput = BeginIoStreams(process,
-            shouldBeginOutputRead,
-            shouldBeginErrorRead,
-            shouldBeginInputStream,
-            cancellationToken);
+        BeginIoStreams(process, shouldBeginOutputRead, shouldBeginErrorRead);
 
         try
         {
@@ -229,14 +201,6 @@ public class ShellCommand
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // if we kill the process before cancelling input, it may observe some exceptions.
-            // This doesn't really matter, but it's not particularly graceful so let's stop the input streaming first
-            if (cancelStreamingInput != null)
-            {
-                cancelStreamingInput.Cancel(); // .NET 8 suggests CancelAsync, but we know there are no async things attached to this Token so there's no value in it.
-                cancelStreamingInput = null;
-            }
-
             if (shouldBeginOutputRead) process.CancelOutputRead();
             if (shouldBeginErrorRead) process.CancelErrorRead();
 
@@ -247,16 +211,12 @@ public class ShellCommand
             // Do not rethrow; The legacy ShellExecutor didn't throw an OperationCanceledException if CancellationToken was signaled.
             // This is a bit nonstandard for .NET, but we keep it as the default for compatibility.
         }
-        finally
-        {
-            cancelStreamingInput?.Cancel();
-        }
 
         return new ShellCommandResult(SafelyGetExitCode(process));
     }
 
     // sets standard flags on the Process that apply for both Execute and ExecuteAsync
-    void ConfigureProcess(Process process, out bool shouldBeginOutputRead, out bool shouldBeginErrorRead, out bool shouldBeginInputStream)
+    void ConfigureProcess(Process process, out bool shouldBeginOutputRead, out bool shouldBeginErrorRead)
     {
         process.StartInfo.FileName = executable;
 
@@ -332,33 +292,15 @@ public class ShellCommand
                 foreach (var target in targets) target.WriteLine(e.Data);
             };
         }
-
-        shouldBeginInputStream = false;
-        if (stdInStream != null && stdInStream != Stream.Null)
-        {
-            process.StartInfo.RedirectStandardInput = true;
-            shouldBeginInputStream = true;
-        }
     }
 
     // Common code for Execute and ExecuteAsync to handle stdin and stdout streaming
-    CancellationTokenSource? BeginIoStreams(Process process,
+    void BeginIoStreams(Process process,
         bool shouldBeginOutputRead,
-        bool shouldBeginErrorRead,
-        bool shouldBeginInputStream,
-        CancellationToken cancellationToken)
+        bool shouldBeginErrorRead)
     {
         if (shouldBeginOutputRead) process.BeginOutputReadLine();
         if (shouldBeginErrorRead) process.BeginErrorReadLine();
-
-        CancellationTokenSource? cancelStreamingInput = null;
-        if (shouldBeginInputStream && stdInStream != null)
-        {
-            cancelStreamingInput = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            StartStreamingInput(process, stdInStream, cancelStreamingInput.Token);
-        }
-
-        return cancelStreamingInput;
     }
 
     static async Task FinalWaitForExitAsync(Process process, CancellationToken cancellationToken)

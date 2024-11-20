@@ -33,7 +33,7 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
     
     // If unspecified, ShellCommand will default to the current directory, which our temporary user may not have access to.
     // Our tests that run as a different user need to set a different working directory or they may fail.
-    string CommonAppDataPath = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+    readonly string commonAppDataPath = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
 
     readonly CancellationTokenSource cancellationTokenSource = new(ShellCommandFixture.TestTimeout);
     CancellationToken CancellationToken => cancellationTokenSource.Token;
@@ -130,7 +130,7 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
         var executor = new ShellCommand(command)
             .WithArguments(arguments)
             .WithCredentials(user.GetCredential())
-            .WithWorkingDirectory(CommonAppDataPath)
+            .WithWorkingDirectory(commonAppDataPath)
             .WithStdOutTarget(stdOut)
             .WithStdErrTarget(stdErr);
 
@@ -152,7 +152,7 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
         var executor = new ShellCommand("cmd.exe")
             .WithArguments($"/c \"echo {EchoEnvironmentVariable("customenvironmentvariable")}\"")
             .WithCredentials(user.GetCredential())
-            .WithWorkingDirectory(CommonAppDataPath)
+            .WithWorkingDirectory(commonAppDataPath)
             .WithEnvironmentVariables(new Dictionary<string, string>
             {
                 { "customenvironmentvariable", "customvalue" }
@@ -177,7 +177,7 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
         var executor = new ShellCommand("cmd.exe")
             .WithArguments($"/c \"echo {EchoEnvironmentVariable("customenvironmentvariable")}%\"")
             .WithCredentials(user.GetCredential())
-            .WithWorkingDirectory(CommonAppDataPath);
+            .WithWorkingDirectory(commonAppDataPath);
 
         for (var i = 0; i < 20; i++)
         {
@@ -215,7 +215,7 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
             // Prove we can write to the temp folder by reading the contents back and echoing them into our test 
             .WithArguments($"/c \"echo {uniqueString} > %temp%\\{uniqueString}.txt && type %temp%\\{uniqueString}.txt\"")
             .WithCredentials(user.GetCredential())
-            .WithWorkingDirectory(CommonAppDataPath)
+            .WithWorkingDirectory(commonAppDataPath)
             .WithStdOutTarget(stdOut)
             .WithStdErrTarget(stdErr);
 

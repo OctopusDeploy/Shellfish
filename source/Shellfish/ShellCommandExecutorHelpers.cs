@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -52,7 +51,7 @@ public static class ShellCommandExecutorHelpers
     {
         // if the request isn't cancellable, we don't need to enable raising events or do any of this work
         if (cancellationToken == default) return null;
-            
+
         var mre = new ManualResetEventSlim(false);
         process.EnableRaisingEvents = true;
         process.Exited += (_, _) =>
@@ -61,16 +60,16 @@ public static class ShellCommandExecutorHelpers
         };
         return mre;
     }
-    
+
     internal static Task AttachProcessExitedTask(Process process, CancellationToken cancellationToken)
     {
         var tcs = new TaskCompletionSource<bool>();
-        
+
         var tokenRegistration = cancellationToken.Register(() =>
         {
             tcs.TrySetCanceled();
         });
-        
+
         process.EnableRaisingEvents = true;
         process.Exited += (_, _) =>
         {
@@ -79,101 +78,4 @@ public static class ShellCommandExecutorHelpers
         };
         return tcs.Task;
     }
-
-    #if !NET5_0_OR_GREATER // .NET 5.0 has Process.WaitForExitAsync, you should always use that in preference to this method
-    
-    internal static async Task WaitForExitWithCancellationAsync(Process process, CancellationToken cancellationToken)
-    {
-        var tcs = new TaskCompletionSource<bool>();
-
-        var registration = cancellationToken.Register(() =>
-        {
-            tcs.TrySetCanceled();
-        });
-        
-        process.EnableRaisingEvents = true;
-        process.Exited += (sender, _) =>
-        {
-            if (sender != process) return;
-
-            registration.Dispose();
-            tcs.TrySetResult(true);
-        };
-
-        await tcs.Task;
-
-        // We are just calling WaitForExit so that process.WaitForExit can wait for the StdErr and StdOut streams to flush.
-        // This could block the thread indefinitely if the process never exits, but given that `exited` has happened it should return very quickly
-        if (!cancellationToken.IsCancellationRequested) process.WaitForExit();
-    }
-    
-    #endif
-    
-    /// <summary>
-    /// Read from inputStream and write to the standard input while the process is alive.
-    /// </summary>
-#if NET5_0_OR_GREATER
-    internal static void StartStreamingInput(Process process, Stream inputStream, CancellationToken cancellationToken)
-    {
-        var buffer = new char[4096];
-        Task.Run(async () =>
-        {
-            try
-            {
-                using var reader = new StreamReader(inputStream);
-                while (!process.HasExited && !cancellationToken.IsCancellationRequested)
-                {
-                    var charsRead = await reader.ReadAsync(buffer, cancellationToken);
-                    if (charsRead == 0)
-                    {
-                        // We have reached the end of the stream.
-                        return;
-                    }
-
-                    await process.StandardInput.WriteAsync(new ReadOnlyMemory<char>(buffer, 0, charsRead), cancellationToken);
-                    await process.StandardInput.FlushAsync(cancellationToken);
-                }
-            }
-            finally
-            {
-                await process.StandardInput.FlushAsync(cancellationToken);
-                process.StandardInput.Close();
-            }
-        }, cancellationToken);
-    }
-#else
-    internal static void StartStreamingInput(Process process, Stream inputStream, CancellationToken cancellationToken)
-    {
-        var buffer = new char[4096];
-        Task.Run(async () =>
-        {
-            try
-            {
-                using var reader = new StreamReader(inputStream);
-                
-                // async stream methods do not support cancellation in netstandard2.0
-                // Our best-effort solution is to close the reader when the cancellation token is triggered, thus forcing ReadAsync to terminate early.
-                cancellationToken.Register(() => reader.Dispose());
-                
-                while (!process.HasExited && !cancellationToken.IsCancellationRequested)
-                {
-                    var charsRead = await reader.ReadAsync(buffer, 0, buffer.Length);
-                    if (charsRead == 0)
-                    {
-                        // We have reached the end of the stream.
-                        return;
-                    }
-
-                    await process.StandardInput.WriteAsync(buffer, 0, charsRead);
-                    await process.StandardInput.FlushAsync();
-                }
-            }
-            finally
-            {
-                await process.StandardInput.FlushAsync();
-                process.StandardInput.Close();
-            }
-        }, cancellationToken);
-    }
-#endif
 }
