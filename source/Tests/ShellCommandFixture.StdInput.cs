@@ -34,12 +34,9 @@ public class ShellCommandFixtureStdInput
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
 
-        // it's going to ask us for the names, we need to answer back or the process will stall forever; we can preload this
-        var stdIn = new BufferedInputSource("Bob");
-
         var executor = new ShellCommand(tempScript.GetHostExecutable())
             .WithArguments(tempScript.GetCommandArgs())
-            .WithStdInSource(stdIn)
+            .WithStdInSource("Bob") // it's going to ask us for the names, we need to answer back or the process will stall forever; we can preload this
             .WithStdOutTarget(stdOut)
             .WithStdErrTarget(stdErr);
 
