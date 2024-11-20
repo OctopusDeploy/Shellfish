@@ -1,7 +1,9 @@
+Octopus.Shellfish.ShellCommandExtensionMethods.WithStdInSource
 Octopus.Shellfish.ShellCommandExtensionMethods.WithStdOutTarget
 Octopus.Shellfish.ShellCommandExtensionMethods.WithStdErrTarget
 Octopus.Shellfish.ShellCommandExtensionMethods.WithStdOutTarget
 Octopus.Shellfish.ShellCommandExtensionMethods.WithStdErrTarget
+Octopus.Shellfish.IInputSource.Subscribe
 Octopus.Shellfish.IOutputTarget.WriteLine
 Octopus.Shellfish.ShellCommand.WithWorkingDirectory
 Octopus.Shellfish.ShellCommand.WithArguments
@@ -10,6 +12,7 @@ Octopus.Shellfish.ShellCommand.WithEnvironmentVariables
 Octopus.Shellfish.ShellCommand.WithCredentials
 Octopus.Shellfish.ShellCommand.WithOutputEncoding
 Octopus.Shellfish.ShellCommand.WithStdOutTarget
+Octopus.Shellfish.ShellCommand.WithStdInSource
 Octopus.Shellfish.ShellCommand.WithStdErrTarget
 Octopus.Shellfish.ShellCommand.Execute
 Octopus.Shellfish.ShellCommand.ExecuteAsync
