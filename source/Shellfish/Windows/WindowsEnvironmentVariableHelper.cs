@@ -17,7 +17,7 @@ namespace Octopus.Shellfish.Windows
         static IDictionary mostRecentMachineEnvironmentVariables = Environment.GetEnvironmentVariables(EnvironmentVariableTarget.Machine);
         static readonly Dictionary<string, Dictionary<string, string>> EnvironmentVariablesForUserCache = new Dictionary<string, Dictionary<string, string>>();
 
-        internal static void SetEnvironmentVariablesForTargetUser(ProcessStartInfo startInfo, NetworkCredential runAs, IDictionary<string, string> customEnvironmentVariables)
+        internal static void SetEnvironmentVariablesForTargetUser(ProcessStartInfo startInfo, NetworkCredential runAs, IReadOnlyDictionary<string, string> customEnvironmentVariables)
         {
             // Double check before we go doing p/invoke gymnastics
             if (customEnvironmentVariables == null || !customEnvironmentVariables.Any()) return;

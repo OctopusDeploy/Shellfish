@@ -51,7 +51,7 @@ public static class ShellCommandExecutorHelpers
     {
         // if the request isn't cancellable, we don't need to enable raising events or do any of this work
         if (cancellationToken == default) return null;
-            
+
         var mre = new ManualResetEventSlim(false);
         process.EnableRaisingEvents = true;
         process.Exited += (_, _) =>
@@ -60,79 +60,22 @@ public static class ShellCommandExecutorHelpers
         };
         return mre;
     }
-    
+
     internal static Task AttachProcessExitedTask(Process process, CancellationToken cancellationToken)
     {
         var tcs = new TaskCompletionSource<bool>();
-        
+
         var tokenRegistration = cancellationToken.Register(() =>
         {
             tcs.TrySetCanceled();
         });
-        
+
         process.EnableRaisingEvents = true;
         process.Exited += (_, _) =>
         {
             tokenRegistration.Dispose();
             tcs.TrySetResult(true);
         };
-        return tcs.Task;
-    }
-
-    #if !NET5_0_OR_GREATER // .NET 5.0 has Process.WaitForExitAsync, you should always use that in preference to this method
-    
-    internal static async Task WaitForExitWithCancellationAsync(Process process, CancellationToken cancellationToken)
-    {
-        var tcs = new TaskCompletionSource<bool>();
-
-        var registration = cancellationToken.Register(() =>
-        {
-            tcs.TrySetCanceled();
-        });
-        
-        process.EnableRaisingEvents = true;
-        process.Exited += (sender, _) =>
-        {
-            if (sender != process) return;
-
-            registration.Dispose();
-            tcs.TrySetResult(true);
-        };
-
-        await tcs.Task;
-
-        // We are just calling WaitForExit so that process.WaitForExit can wait for the StdErr and StdOut streams to flush.
-        // This could block the thread indefinitely if the process never exits, but given that `exited` has happened it should return very quickly
-        if (!cancellationToken.IsCancellationRequested) process.WaitForExit();
-    }
-    
-    #endif
-    
-    internal static Task WaitForExitInNewThread(Process process, CancellationToken cancellationToken)
-    {
-        var tcs = new TaskCompletionSource<bool>();
-
-        var registration = cancellationToken.Register(() =>
-        {
-            tcs.TrySetCanceled();
-        });
-
-        new Thread(() =>
-        {
-            try
-            {
-                process.WaitForExit();
-                tcs.TrySetResult(true);
-            }
-            catch (Exception e)
-            {
-                tcs.TrySetException(e);
-            }
-            finally
-            {
-                registration.Dispose();
-            }
-        }).Start();
         return tcs.Task;
     }
 }

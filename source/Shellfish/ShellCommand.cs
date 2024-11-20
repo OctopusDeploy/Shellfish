@@ -20,16 +20,16 @@ public class ShellCommand
     List<string>? argumentList;
     string? argumentString;
     string? workingDirectory;
-    Dictionary<string, string>? environmentVariables;
+    IReadOnlyDictionary<string, string>? environmentVariables;
     NetworkCredential? windowsCredential;
     Encoding? outputEncoding;
 
     List<IOutputTarget>? stdOutTargets;
     List<IOutputTarget>? stdErrTargets;
-    
+
     public ShellCommand(string executable)
     {
-        if(string.IsNullOrWhiteSpace(executable)) throw new ArgumentException("Executable must be a valid non-whitespace string.", nameof(executable));
+        if (string.IsNullOrWhiteSpace(executable)) throw new ArgumentException("Executable must be a valid non-whitespace string.", nameof(executable));
         this.executable = executable;
     }
 
@@ -72,7 +72,11 @@ public class ShellCommand
     /// <summary>
     /// Allows you to set additional environment variables for the launched process.
     /// </summary>
-    public ShellCommand WithEnvironmentVariables(Dictionary<string, string> dictionary)
+    /// <remarks>
+    /// The C# IDictionary type does not implement IReadOnlyDictionary. If you have an IDictionary, you will
+    /// need to copy it into something IReadOnlyDictionary compatible, such as new Dictionary&lt;string, string&gt;(yourDictionary).
+    /// </remarks>
+    public ShellCommand WithEnvironmentVariables(IReadOnlyDictionary<string, string> dictionary)
     {
         environmentVariables = dictionary;
         return this;
@@ -122,7 +126,7 @@ public class ShellCommand
         stdOutTargets.Add(target);
         return this;
     }
-    
+
     /// <summary>
     /// Adds an output target for the standard error stream of the process.
     /// Typically, an extension method like WithStdErrTarget(StringBuilder) or WithStdErrTarget(Action&lt;string&gt;) would be used over this. 
@@ -139,14 +143,13 @@ public class ShellCommand
     /// </summary>
     public ShellCommandResult Execute(CancellationToken cancellationToken = default)
     {
-        var process = new Process();
+        using var process = new Process();
         ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
 
         var exitedEvent = AttachProcessExitedManualResetEvent(process, cancellationToken);
         process.Start();
 
-        if (shouldBeginOutputRead) process.BeginOutputReadLine();
-        if (shouldBeginErrorRead) process.BeginErrorReadLine();
+        BeginIoStreams(process, shouldBeginOutputRead, shouldBeginErrorRead);
 
         try
         {
@@ -168,11 +171,11 @@ public class ShellCommand
             // The legacy ShellExecutor would unconditionally kill the process upon cancellation.
             // We keep that default as it is the safest option for compatibility
             TryKillProcessAndChildrenRecursively(process);
-            
+
             // Do not rethrow; The legacy ShellExecutor didn't throw an OperationCanceledException if CancellationToken was signaled.
             // This is a bit nonstandard for .NET, but we keep it as the default for compatibility.
         }
-        
+
         return new ShellCommandResult(SafelyGetExitCode(process));
     }
 
@@ -181,14 +184,13 @@ public class ShellCommand
     /// </summary>
     public async Task<ShellCommandResult> ExecuteAsync(CancellationToken cancellationToken = default)
     {
-        var process = new Process();
+        using var process = new Process();
         ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
 
         var exitedTask = AttachProcessExitedTask(process, cancellationToken);
         process.Start();
 
-        if (shouldBeginOutputRead) process.BeginOutputReadLine();
-        if (shouldBeginErrorRead) process.BeginErrorReadLine();
+        BeginIoStreams(process, shouldBeginOutputRead, shouldBeginErrorRead);
 
         try
         {
@@ -205,15 +207,14 @@ public class ShellCommand
             // The legacy ShellExecutor would unconditionally kill the process upon cancellation.
             // We keep that default as it is the safest option for compatibility
             TryKillProcessAndChildrenRecursively(process);
-            
+
             // Do not rethrow; The legacy ShellExecutor didn't throw an OperationCanceledException if CancellationToken was signaled.
             // This is a bit nonstandard for .NET, but we keep it as the default for compatibility.
         }
 
         return new ShellCommandResult(SafelyGetExitCode(process));
     }
-    
-    
+
     // sets standard flags on the Process that apply for both Execute and ExecuteAsync
     void ConfigureProcess(Process process, out bool shouldBeginOutputRead, out bool shouldBeginErrorRead)
     {
@@ -293,11 +294,20 @@ public class ShellCommand
         }
     }
 
+    // Common code for Execute and ExecuteAsync to handle stdin and stdout streaming
+    void BeginIoStreams(Process process,
+        bool shouldBeginOutputRead,
+        bool shouldBeginErrorRead)
+    {
+        if (shouldBeginOutputRead) process.BeginOutputReadLine();
+        if (shouldBeginErrorRead) process.BeginErrorReadLine();
+    }
+
     static async Task FinalWaitForExitAsync(Process process, CancellationToken cancellationToken)
     {
 #if NET5_0_OR_GREATER // WaitForExitAsync was added in net5. It handles the buffer flushing scenario so we can simply call it.
         await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-#else 
+#else
         // Compatibility shim for netstandard2.0
         // Similarly to the sync version, We want to wait for the StdErr and StdOut streams to flush but cannot easily
         // do this ourselves. https://github.com/dotnet/runtime/blob/e03b9a4692a15eb3ffbb637439241e8f8e5ca95f/src/libraries/System.Diagnostics.Process/src/System/Diagnostics/Process.cs#L1565
