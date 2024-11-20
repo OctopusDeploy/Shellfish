@@ -81,8 +81,8 @@ public class ShellCommandFixtureStdInput
             .WithStdOutTarget(stdOut)
             .WithStdOutTarget(l =>
             {
-                if (l.Contains("Enter First Name:")) stdIn.OnNext("Bob");
-                if (l.Contains("Enter Last Name:")) stdIn.OnNext("Octopus");
+                if (l.Contains("First")) stdIn.OnNext("Bob");
+                if (l.Contains("Last")) stdIn.OnNext("Octopus");
             })
             .WithStdErrTarget(stdErr);
 
