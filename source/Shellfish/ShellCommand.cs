@@ -26,6 +26,7 @@ public class ShellCommand
 
     List<IOutputTarget>? stdOutTargets;
     List<IOutputTarget>? stdErrTargets;
+    IInputSource? stdInSource;
 
     public ShellCommand(string executable)
     {
@@ -138,18 +139,24 @@ public class ShellCommand
         return this;
     }
 
+    public ShellCommand WithStdInSource(IInputSource source)
+    {
+        stdInSource = source;
+        return this;
+    }
+
     /// <summary>
     /// Launches the process and synchronously waits for it to exit.
     /// </summary>
     public ShellCommandResult Execute(CancellationToken cancellationToken = default)
     {
         using var process = new Process();
-        ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
+        ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead, out var redirectingStdIn);
 
         var exitedEvent = AttachProcessExitedManualResetEvent(process, cancellationToken);
         process.Start();
 
-        BeginIoStreams(process, shouldBeginOutputRead, shouldBeginErrorRead);
+        BeginIoStreams(process, shouldBeginOutputRead, shouldBeginErrorRead, redirectingStdIn);
 
         try
         {
@@ -185,12 +192,12 @@ public class ShellCommand
     public async Task<ShellCommandResult> ExecuteAsync(CancellationToken cancellationToken = default)
     {
         using var process = new Process();
-        ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
+        ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead, out var redirectingStdIn);
 
         var exitedTask = AttachProcessExitedTask(process, cancellationToken);
         process.Start();
 
-        BeginIoStreams(process, shouldBeginOutputRead, shouldBeginErrorRead);
+        BeginIoStreams(process, shouldBeginOutputRead, shouldBeginErrorRead, redirectingStdIn);
 
         try
         {
@@ -216,7 +223,7 @@ public class ShellCommand
     }
 
     // sets standard flags on the Process that apply for both Execute and ExecuteAsync
-    void ConfigureProcess(Process process, out bool shouldBeginOutputRead, out bool shouldBeginErrorRead)
+    void ConfigureProcess(Process process, out bool shouldBeginOutputRead, out bool shouldBeginErrorRead, out bool redirectingStdIn)
     {
         process.StartInfo.FileName = executable;
 
@@ -264,7 +271,7 @@ public class ShellCommand
             }
         }
 
-        shouldBeginOutputRead = shouldBeginErrorRead = false;
+        shouldBeginOutputRead = shouldBeginErrorRead = redirectingStdIn = false;
         if (stdOutTargets is { Count: > 0 })
         {
             process.StartInfo.RedirectStandardOutput = true;
@@ -292,15 +299,41 @@ public class ShellCommand
                 foreach (var target in targets) target.WriteLine(e.Data);
             };
         }
+
+        if (stdInSource is not null)
+        {
+            process.StartInfo.RedirectStandardInput = true;
+            redirectingStdIn = true;
+        }
     }
 
     // Common code for Execute and ExecuteAsync to handle stdin and stdout streaming
     void BeginIoStreams(Process process,
         bool shouldBeginOutputRead,
-        bool shouldBeginErrorRead)
+        bool shouldBeginErrorRead,
+        bool redirectingStdIn)
     {
         if (shouldBeginOutputRead) process.BeginOutputReadLine();
         if (shouldBeginErrorRead) process.BeginErrorReadLine();
+
+        if (redirectingStdIn)
+        {
+            try
+            {
+                foreach (var val in stdInSource!.GetInput())
+                {
+                    process.StandardInput.Write(val);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // gracefully handle cancellation of the enumerator
+            }
+            finally
+            {
+                process.StandardInput.Close();
+            }
+        }
     }
 
     static async Task FinalWaitForExitAsync(Process process, CancellationToken cancellationToken)
