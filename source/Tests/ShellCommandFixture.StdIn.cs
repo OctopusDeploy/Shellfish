@@ -79,10 +79,10 @@ public class ShellCommandFixtureStdIn
             .WithStdOutTarget(stdOut)
             .WithStdOutTarget(l =>
             {
-                if (l.Contains("First")) stdIn.Append("Bob");
+                if (l.Contains("First")) stdIn.AppendLine("Bob");
                 if (l.Contains("Last"))
                 {
-                    stdIn.Append("Octopus");
+                    stdIn.AppendLine("Octopus");
                     stdIn.Complete();
                 }
             })
@@ -129,7 +129,7 @@ public class ShellCommandFixtureStdIn
             .WithStdOutTarget(stdOut)
             .WithStdOutTarget(l =>
             {
-                if (l.Contains("First")) stdIn.Append("Bob");
+                if (l.Contains("First")) stdIn.AppendLine("Bob");
                 if (l.Contains("Last")) stdIn.Complete(); // shut it down
             })
             .WithStdErrTarget(stdErr);
@@ -195,9 +195,9 @@ public class TestInputSource(CancellationToken? cancellationToken = null) : IInp
 {
     readonly BlockingCollection<string> collection = new();
 
-    public void Append(string line)
+    public void AppendLine(string line)
     {
-        collection.Add(line);
+        collection.Add(line + Environment.NewLine);
     }
 
     public void Complete()
