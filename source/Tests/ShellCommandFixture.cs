@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -16,7 +15,7 @@ using Xunit;
 
 namespace Tests;
 
-// Cross-platform tests for ShellCommandExecutor
+// Cross-platform tests for ShellCommand
 public class ShellCommandFixture
 {
     // ReSharper disable InconsistentNaming
@@ -263,7 +262,7 @@ public class ShellCommandFixture
     public async Task ArgumentArrayHandlingShouldBeCorrect(SyncBehaviour behaviour)
     {
         using var assertionScope = new AssertionScope();
-        using var tempScript = CreateTempScript(
+        using var tempScript = TempScript.Create(
             cmd: """
                  @echo off
                  setlocal enabledelayedexpansion
@@ -289,12 +288,10 @@ public class ShellCommandFixture
         ];
 
         // when running cmd.exe we need /c to tell it to run the script; bash doesn't want any preamble for a script file
-        string[] invocation = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-            ? ["/c", tempScript.ScriptPath]
-            : [tempScript.ScriptPath];
+        string[] runScriptArgs = tempScript.GetCommandArgs();
 
-        var executor = new ShellCommand(Command)
-            .WithArguments([..invocation, ..inputArgs])
+        var executor = new ShellCommand(tempScript.GetHostExecutable())
+            .WithArguments([..runScriptArgs, ..inputArgs])
             .WithStdOutTarget(stdOut)
             .WithStdErrTarget(stdErr);
 
@@ -323,39 +320,4 @@ public class ShellCommandFixture
 
     static string EchoEnvironmentVariable(string varName)
         => RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? $"%{varName}%" : $"${varName}";
-
-    // Some interactions such as stdout or encoding codepages require things that don't work with an inline cmd /c or bash -c command
-    // This helper writes a script file into the temp directory so we can exercise more complex scenarios
-    static TempScriptHandle CreateTempScript(string cmd, string sh)
-    {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".cmd");
-            File.WriteAllText(tempFile, cmd);
-            return new TempScriptHandle(tempFile);
-        }
-        else
-        {
-            var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sh");
-            File.WriteAllText(tempFile, sh.Replace("\r\n", "\n"));
-            return new TempScriptHandle(tempFile);
-        }
-    }
-
-    class TempScriptHandle(string scriptPath) : IDisposable
-    {
-        public string ScriptPath { get; } = scriptPath;
-
-        public void Dispose()
-        {
-            try
-            {
-                File.Delete(ScriptPath);
-            }
-            catch
-            {
-                // nothing to do if we can't delete the temp file
-            }
-        }
-    }
 }

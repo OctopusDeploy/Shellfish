@@ -26,6 +26,7 @@ public class ShellCommand
 
     List<IOutputTarget>? stdOutTargets;
     List<IOutputTarget>? stdErrTargets;
+    IInputSource? stdInSource;
 
     public ShellCommand(string executable)
     {
@@ -127,6 +128,12 @@ public class ShellCommand
         return this;
     }
 
+    public ShellCommand WithStdInSource(IInputSource source)
+    {
+        stdInSource = source;
+        return this;
+    }
+
     /// <summary>
     /// Adds an output target for the standard error stream of the process.
     /// Typically, an extension method like WithStdErrTarget(StringBuilder) or WithStdErrTarget(Action&lt;string&gt;) would be used over this. 
@@ -144,12 +151,12 @@ public class ShellCommand
     public ShellCommandResult Execute(CancellationToken cancellationToken = default)
     {
         using var process = new Process();
-        ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
+        ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead, out var shouldBeginInput);
 
         var exitedEvent = AttachProcessExitedManualResetEvent(process, cancellationToken);
         process.Start();
 
-        BeginIoStreams(process, shouldBeginOutputRead, shouldBeginErrorRead);
+        IDisposable? closeStdInDisposable = BeginIoStreams(process, shouldBeginOutputRead, shouldBeginErrorRead, shouldBeginInput);
 
         try
         {
@@ -165,6 +172,12 @@ public class ShellCommand
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            // Cancellation is not necessarily an error, and some processes will gracefully exit themselves when stdin is closed.
+            // We can observe a valid 0 exit code if that happens.
+            // If the process does not close itself, we'll proceed to killing it.
+            closeStdInDisposable?.Dispose();
+            closeStdInDisposable = null;
+
             if (shouldBeginOutputRead) process.CancelOutputRead();
             if (shouldBeginErrorRead) process.CancelErrorRead();
 
@@ -174,6 +187,10 @@ public class ShellCommand
 
             // Do not rethrow; The legacy ShellExecutor didn't throw an OperationCanceledException if CancellationToken was signaled.
             // This is a bit nonstandard for .NET, but we keep it as the default for compatibility.
+        }
+        finally
+        {
+            closeStdInDisposable?.Dispose();
         }
 
         return new ShellCommandResult(SafelyGetExitCode(process));
@@ -185,12 +202,12 @@ public class ShellCommand
     public async Task<ShellCommandResult> ExecuteAsync(CancellationToken cancellationToken = default)
     {
         using var process = new Process();
-        ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead);
+        ConfigureProcess(process, out var shouldBeginOutputRead, out var shouldBeginErrorRead, out var shouldBeginInput);
 
         var exitedTask = AttachProcessExitedTask(process, cancellationToken);
         process.Start();
 
-        BeginIoStreams(process, shouldBeginOutputRead, shouldBeginErrorRead);
+        IDisposable? closeStdInDisposable = BeginIoStreams(process, shouldBeginOutputRead, shouldBeginErrorRead, shouldBeginInput);
 
         try
         {
@@ -201,6 +218,12 @@ public class ShellCommand
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            // Cancellation is not necessarily an error, and some processes will gracefully exit themselves when stdin is closed.
+            // We can observe a valid 0 exit code if that happens.
+            // If the process does not close itself, we'll proceed to killing it.
+            closeStdInDisposable?.Dispose();
+            closeStdInDisposable = null;
+
             if (shouldBeginOutputRead) process.CancelOutputRead();
             if (shouldBeginErrorRead) process.CancelErrorRead();
 
@@ -211,12 +234,16 @@ public class ShellCommand
             // Do not rethrow; The legacy ShellExecutor didn't throw an OperationCanceledException if CancellationToken was signaled.
             // This is a bit nonstandard for .NET, but we keep it as the default for compatibility.
         }
+        finally
+        {
+            closeStdInDisposable?.Dispose();
+        }
 
         return new ShellCommandResult(SafelyGetExitCode(process));
     }
 
     // sets standard flags on the Process that apply for both Execute and ExecuteAsync
-    void ConfigureProcess(Process process, out bool shouldBeginOutputRead, out bool shouldBeginErrorRead)
+    void ConfigureProcess(Process process, out bool shouldBeginOutputRead, out bool shouldBeginErrorRead, out bool shouldBeginInput)
     {
         process.StartInfo.FileName = executable;
 
@@ -292,15 +319,43 @@ public class ShellCommand
                 foreach (var target in targets) target.WriteLine(e.Data);
             };
         }
+
+        shouldBeginInput = false;
+        if (stdInSource is not null)
+        {
+            process.StartInfo.RedirectStandardInput = true;
+            shouldBeginInput = true;
+        }
     }
 
     // Common code for Execute and ExecuteAsync to handle stdin and stdout streaming
-    void BeginIoStreams(Process process,
+    IDisposable? BeginIoStreams(Process process,
         bool shouldBeginOutputRead,
-        bool shouldBeginErrorRead)
+        bool shouldBeginErrorRead,
+        bool shouldBeginInput)
     {
         if (shouldBeginOutputRead) process.BeginOutputReadLine();
         if (shouldBeginErrorRead) process.BeginErrorReadLine();
+
+        if (shouldBeginInput && stdInSource != null)
+        {
+            var inputQueue = new InputQueue(process.StandardInput);
+            var unsubscribe = stdInSource.Subscribe(inputQueue);
+            return new StopInputStreamDisposable(inputQueue, unsubscribe);
+        }
+
+        return null;
+    }
+
+    sealed class StopInputStreamDisposable(InputQueue inputQueue, IDisposable additionalDisposable) : IDisposable
+    {
+        public void Dispose()
+        {
+            // tell the input queue to shut itself down
+            inputQueue.OnCompleted();
+            // do whatever other work might be attached
+            additionalDisposable.Dispose();
+        }
     }
 
     static async Task FinalWaitForExitAsync(Process process, CancellationToken cancellationToken)
