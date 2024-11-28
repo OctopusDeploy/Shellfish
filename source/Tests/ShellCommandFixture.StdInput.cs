@@ -23,12 +23,12 @@ public class ShellCommandFixtureStdInput
                  @echo off
                  echo Enter First Name:
                  set /p firstname=
-                 echo Hello %firstname%
+                 echo Hello '%firstname%'
                  """,
             sh: """
                 echo "Enter First Name:"
                 read firstname
-                echo "Hello $firstname"
+                echo "Hello '$firstname'"
                 """);
 
         var stdOut = new StringBuilder();
@@ -46,7 +46,7 @@ public class ShellCommandFixtureStdInput
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
         stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
-        stdOut.ToString().Should().Be("Enter First Name:" + Environment.NewLine + "Hello Bob" + Environment.NewLine);
+        stdOut.ToString().Should().Be("Enter First Name:" + Environment.NewLine + "Hello 'Bob'" + Environment.NewLine);
     }
 
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -59,14 +59,14 @@ public class ShellCommandFixtureStdInput
                  set /p firstname=
                  echo Enter Last Name:
                  set /p lastname=
-                 echo Hello %firstname% %lastname%
+                 echo Hello '%firstname%' '%lastname%'
                  """,
             sh: """
                 echo "Enter First Name:"
                 read firstname
                 echo "Enter Last Name:"
                 read lastname
-                echo "Hello $firstname $lastname"
+                echo "Hello '$firstname' '$lastname'"
                 """);
 
         var stdOut = new StringBuilder();
@@ -92,7 +92,7 @@ public class ShellCommandFixtureStdInput
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
         stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
-        stdOut.ToString().Should().Be("Enter First Name:" + Environment.NewLine + "Enter Last Name:" + Environment.NewLine + "Hello Bob Octopus" + Environment.NewLine);
+        stdOut.ToString().Should().Be("Enter First Name:" + Environment.NewLine + "Enter Last Name:" + Environment.NewLine + "Hello 'Bob' 'Octopus'" + Environment.NewLine);
     }
     
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -105,14 +105,14 @@ public class ShellCommandFixtureStdInput
                  set /p firstname=
                  echo Enter Last Name:
                  set /p lastname=
-                 echo Hello %firstname% %lastname%
+                 echo Hello '%firstname%' '%lastname%'
                  """,
             sh: """
                 echo "Enter First Name:"
                 read firstname
                 echo "Enter Last Name:"
                 read lastname
-                echo "Hello $firstname $lastname"
+                echo "Hello '$firstname' '$lastname'"
                 """);
 
         var stdOut = new StringBuilder();
@@ -139,7 +139,7 @@ public class ShellCommandFixtureStdInput
         result.ExitCode.Should().Be(0, "the process should have run to completion");
         stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
         // When we close stdin the waiting process receives an EOF; Our trivial shell script interprets this as an empty string
-        stdOut.ToString().Should().Be("Enter First Name:" + Environment.NewLine + "Enter Last Name:" + Environment.NewLine + "Hello Bob " + Environment.NewLine);
+        stdOut.ToString().Should().Be("Enter First Name:" + Environment.NewLine + "Enter Last Name:" + Environment.NewLine + "Hello 'Bob' ''" + Environment.NewLine);
     }
     
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -150,12 +150,12 @@ public class ShellCommandFixtureStdInput
                  @echo off
                  echo Enter First Name:
                  set /p firstname=
-                 echo Hello %firstname%
+                 echo Hello '%firstname%'
                  """,
             sh: """
                 echo "Enter First Name:"
                 read firstname
-                echo "Hello $firstname"
+                echo "Hello '$firstname'"
                 """);
 
         var stdOut = new StringBuilder();
@@ -185,7 +185,7 @@ public class ShellCommandFixtureStdInput
 
         result.ExitCode.Should().Be(0, "the process should have run to completion");
         stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
-        stdOut.ToString().Should().Be("Enter First Name:" + Environment.NewLine + "Hello Bob" + Environment.NewLine);
+        stdOut.ToString().Should().Be("Enter First Name:" + Environment.NewLine + "Hello 'Bob'" + Environment.NewLine);
         
         stdIn.Subscriber.Should().BeNull("the shellcommand should have unsubscribed from the input source after the process exits");
     }
@@ -198,12 +198,12 @@ public class ShellCommandFixtureStdInput
                  @echo off
                  echo Enter Name:
                  set /p name=
-                 echo Hello %name%
+                 echo Hello '%name%'
                  """,
             sh: """
                 echo "Enter Name:"
                 read name
-                echo "Hello $name"
+                echo "Hello '$name'"
                 """);
 
         var stdOut = new StringBuilder();
@@ -234,7 +234,10 @@ public class ShellCommandFixtureStdInput
         // Whenever I've run this locally on windows or linux I always observe 0.
         result.ExitCode.Should().BeOneOf([0, -1], "The process should exit cleanly when stdin is closed, but we might kill depending on timing");
         stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
-        stdOut.ToString().Should().Be("Enter Name:" + Environment.NewLine);
+        stdOut.ToString().Should().BeOneOf([
+            "Enter Name:" + Environment.NewLine,
+            "Enter Name:" + Environment.NewLine + "Hello ''" + Environment.NewLine,
+        ], because: "When we cancel the process we close StdIn and it shuts down. The process observes the EOF as empty string and prints 'Hello ' but there is a benign race condition which means we may not observe this output. Test needs to handle both cases");
     }
     
     // If someone wants to have an interactive back-and-forth with a process, they 
