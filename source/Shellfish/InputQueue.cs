@@ -9,7 +9,7 @@ namespace Octopus.Shellfish;
 // it may block or throw exceptions. Both the blocking and exception throwing could leak
 // out to the caller and cause unexpected problems. To solve these, we queue input and process
 // it asynchronously in the background
-public class InputQueue : IInputSourceObserver
+class InputQueue : IInputSourceObserver
 {
     readonly Queue<Notification> queue = new(); // serves as the lock-object for this instance
     readonly StreamWriter processStdInput;

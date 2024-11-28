@@ -128,7 +128,8 @@ public class ShellCommand
         return this;
     }
 
-    public ShellCommand WithStdInSource(IInputSource source)
+    // Experimental: We are not 100% sure this is the right way to implement stdin
+    internal ShellCommand WithStdInSource(IInputSource source)
     {
         stdInSource = source;
         return this;
