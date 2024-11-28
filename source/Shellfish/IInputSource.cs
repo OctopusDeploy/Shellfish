@@ -2,12 +2,14 @@ using System;
 
 namespace Octopus.Shellfish;
 
-public interface IInputSource
+// Experimental: We are not 100% sure this is the right way to implement stdin
+internal interface IInputSource
 {
     IDisposable Subscribe(IInputSourceObserver observer);
 }
 
-public interface IInputSourceObserver
+// Experimental: We are not 100% sure this is the right way to implement stdin
+internal interface IInputSourceObserver
 {
     void OnNext(string line);
     void OnCompleted();
