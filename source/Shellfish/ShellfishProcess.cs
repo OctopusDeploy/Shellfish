@@ -98,7 +98,7 @@ class ShellfishProcess : IDisposable
         {
             exitedEvent?.Wait(cancellationToken);
 
-            // Either: AttachProcessExitedManualResetEvent determined there was no cancellation to consider and exitedEvent is null.
+            // Either: exitedEvent is null.
             // We can offload all the work to process.WaitForExit();
             //
             // Or: ExitEvent was signalled, but we still want to call process.WaitForExit; it waits for the StdErr and StdOut streams to flush.
