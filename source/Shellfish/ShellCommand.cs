@@ -97,9 +97,7 @@ public class ShellCommand
     /// Currently only supported on Windows
     /// </summary>
     /// <param name="credential">The credential representing the user account.</param>
-#if NET5_0_OR_GREATER
     [SupportedOSPlatform("Windows")]
-#endif
     public ShellCommand WithCredentials(NetworkCredential credential)
     {
         windowsCredential = credential;
