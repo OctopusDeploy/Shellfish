@@ -24,7 +24,7 @@ public class ShellCommand
     NetworkCredential? windowsCredential;
     Encoding? outputEncoding;
     ShellCommandOptions commandOptions;
-    Action<int>? onCaptureProcessId;
+    Action<Process>? onCaptureProcess;
 
     List<IOutputTarget>? stdOutTargets;
     List<IOutputTarget>? stdErrTargets;
@@ -37,9 +37,9 @@ public class ShellCommand
     }
 
     // internal only, so tests can assert if a process has exited or not.
-    internal ShellCommand CaptureProcessId(Action<int> onProcessId)
+    internal ShellCommand CaptureProcess(Action<Process> onProcess)
     {
-        onCaptureProcessId = onProcessId;
+        onCaptureProcess = onProcess;
         return this;
     }
 
@@ -172,7 +172,7 @@ public class ShellCommand
         var exitedEvent = AttachProcessExitedManualResetEvent(process, cancellationToken);
         process.Start();
 
-        onCaptureProcessId?.Invoke(process.Id);
+        onCaptureProcess?.Invoke(process);
 
         IDisposable? closeStdInDisposable = BeginIoStreams(process, shouldBeginOutputRead, shouldBeginErrorRead, shouldBeginInput);
 
@@ -224,7 +224,7 @@ public class ShellCommand
         var exitedTask = AttachProcessExitedTask(process, cancellationToken);
         process.Start();
         
-        onCaptureProcessId?.Invoke(process.Id);
+        onCaptureProcess?.Invoke(process);
 
         IDisposable? closeStdInDisposable = BeginIoStreams(process, shouldBeginOutputRead, shouldBeginErrorRead, shouldBeginInput);
 

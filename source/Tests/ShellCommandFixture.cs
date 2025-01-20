@@ -91,10 +91,9 @@ public class ShellCommandFixture
             ? new ShellCommand("timeout.exe").WithArguments("/t 500 /nobreak")
             : new ShellCommand("bash").WithArguments("-c \"sleep 500\"");
 
-        int processId = 0;
-
+        Process? process = null;
         executor = executor
-            .CaptureProcessId(pid => processId = pid);
+            .CaptureProcess(p => process = p);
             // Do not capture stdout or stderr; the windows timeout command will fail with ERROR: Input redirection is not supported
 
         var cancellationToken = cts.Token;
@@ -109,8 +108,8 @@ public class ShellCommandFixture
         
         // we can't observe any exit code because Execute() threw an exception
 
-        processId.Should().NotBe(0, "the process ID should have been captured");
-        new Action(() => Process.GetProcessById(processId)).Should().Throw<ArgumentException>().Which.Message.Should().Contain("not running");
+        process?.Should().NotBeNull();
+        EnsureProcessHasExited(process!);
     }
 
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
@@ -119,16 +118,15 @@ public class ShellCommandFixture
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken);
         // Terminate the process after a short time so the test doesn't run forever
         cts.CancelAfter(TimeSpan.FromSeconds(0.5));
-
-        int processId = 0;
         
         var executor = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
             ? new ShellCommand("timeout.exe").WithArguments("/t 500 /nobreak")
             : new ShellCommand("bash").WithArguments("-c \"sleep 500\"");
 
+        Process? process = null;
         executor = executor
             .WithOptions(ShellCommandOptions.DoNotThrowOnCancellation)
-            .CaptureProcessId(pid => processId = pid);
+            .CaptureProcess(p => process = p);
             // Do not capture stdout or stderr; the windows timeout command will fail with ERROR: Input redirection is not supported
 
         var result = behaviour == SyncBehaviour.Async
@@ -146,8 +144,20 @@ public class ShellCommandFixture
             exitCode.Should().BeOneOf(SIG_KILL, SIG_TERM, 0, -1);
         }
 
-        processId.Should().NotBe(0, "the process ID should have been captured");
-        new Action(() => Process.GetProcessById(processId)).Should().Throw<ArgumentException>().Which.Message.Should().Contain("not running");
+        process?.Should().NotBeNull();
+        EnsureProcessHasExited(process!);
+    }
+
+    static void EnsureProcessHasExited(Process process)
+    {
+        try
+        {
+            process.HasExited.Should().BeTrue("the process should have exited");
+        }
+        catch (InvalidOperationException e) when (e.Message is "No process is associated with this object.")
+        {
+            // process.HasExited throws this exception if you call HasExited on a process that has quit already; we expect this
+        }
     }
 
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
