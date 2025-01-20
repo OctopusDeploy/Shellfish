@@ -84,20 +84,18 @@ public class ShellCommandFixture
     public async Task CancellationToken_ShouldForceKillTheProcess(SyncBehaviour behaviour)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken);
-        // Terminate the process after a very short time so the test doesn't run forever
-        cts.CancelAfter(TimeSpan.FromSeconds(1));
+        // Terminate the process after a short time so the test doesn't run forever
+        cts.CancelAfter(TimeSpan.FromSeconds(0.5));
 
         var executor = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-            ? new ShellCommand("cmd.exe").WithArguments("timeout /t 500 /nobreak")
+            ? new ShellCommand("timeout.exe").WithArguments("/t 500 /nobreak")
             : new ShellCommand("bash").WithArguments("-c \"sleep 500\"");
 
         int processId = 0;
-        var stdOut = new StringBuilder();
-        var stdErr = new StringBuilder();
+
         executor = executor
-            .CaptureProcessId(pid => processId = pid)
-            .WithStdOutTarget(stdOut)
-            .WithStdErrTarget(stdErr);
+            .CaptureProcessId(pid => processId = pid);
+            // Do not capture stdout or stderr; the windows timeout command will fail with ERROR: Input redirection is not supported
 
         var cancellationToken = cts.Token;
         if (behaviour == SyncBehaviour.Async)
@@ -108,14 +106,8 @@ public class ShellCommandFixture
         {
             executor.Invoking(e => e.Execute(cancellationToken)).Should().Throw<OperationCanceledException>();
         }
+        
         // we can't observe any exit code because Execute() threw an exception
-
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            stdOut.ToString().Should().ContainEquivalentOf("Microsoft Windows", "the default command-line header would be written to stdout");
-        }
-
-        stdErr.ToString().Should().BeEmpty("no messages should be written to stderr, and the process was terminated before the trailing newline got there");
 
         processId.Should().NotBe(0, "the process ID should have been captured");
         new Action(() => Process.GetProcessById(processId)).Should().Throw<ArgumentException>().Which.Message.Should().Contain("not running");
@@ -125,22 +117,19 @@ public class ShellCommandFixture
     public async Task CancellationToken_ShouldForceKillTheProcess_DoNotThrowOnCancellation(SyncBehaviour behaviour)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken);
-        // Terminate the process after a very short time so the test doesn't run forever
-        cts.CancelAfter(TimeSpan.FromSeconds(1));
+        // Terminate the process after a short time so the test doesn't run forever
+        cts.CancelAfter(TimeSpan.FromSeconds(0.5));
 
         int processId = 0;
-        var stdOut = new StringBuilder();
-        var stdErr = new StringBuilder();
         
         var executor = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-            ? new ShellCommand("cmd.exe").WithArguments("timeout /t 500 /nobreak")
+            ? new ShellCommand("timeout.exe").WithArguments("/t 500 /nobreak")
             : new ShellCommand("bash").WithArguments("-c \"sleep 500\"");
 
         executor = executor
             .WithOptions(ShellCommandOptions.DoNotThrowOnCancellation)
-            .CaptureProcessId(pid => processId = pid)
-            .WithStdOutTarget(stdOut)
-            .WithStdErrTarget(stdErr);
+            .CaptureProcessId(pid => processId = pid);
+            // Do not capture stdout or stderr; the windows timeout command will fail with ERROR: Input redirection is not supported
 
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(cts.Token)
@@ -151,15 +140,12 @@ public class ShellCommandFixture
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             exitCode.Should().BeLessOrEqualTo(0, "the process should have been terminated");
-            stdOut.ToString().Should().ContainEquivalentOf("Microsoft Windows", "the default command-line header would be written to stdout");
         }
         else
         {
             exitCode.Should().BeOneOf(SIG_KILL, SIG_TERM, 0, -1);
         }
 
-        stdErr.ToString().Should().BeEmpty("no messages should be written to stderr, and the process was terminated before the trailing newline got there");
-        
         processId.Should().NotBe(0, "the process ID should have been captured");
         new Action(() => Process.GetProcessById(processId)).Should().Throw<ArgumentException>().Which.Message.Should().Contain("not running");
     }
