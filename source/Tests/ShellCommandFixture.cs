@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -83,15 +84,50 @@ public class ShellCommandFixture
     public async Task CancellationToken_ShouldForceKillTheProcess(SyncBehaviour behaviour)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken);
-        // Terminate the process after a very short time so the test doesn't run forever
-        cts.CancelAfter(TimeSpan.FromSeconds(1));
+        // Terminate the process after a short time so the test doesn't run forever
+        cts.CancelAfter(TimeSpan.FromSeconds(0.5));
 
-        var stdOut = new StringBuilder();
-        var stdErr = new StringBuilder();
-        // Starting a new instance of cmd.exe will run indefinitely waiting for user input
-        var executor = new ShellCommand(Command)
-            .WithStdOutTarget(stdOut)
-            .WithStdErrTarget(stdErr);
+        var executor = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? new ShellCommand("timeout.exe").WithArguments("/t 500 /nobreak")
+            : new ShellCommand("bash").WithArguments("-c \"sleep 500\"");
+
+        Process? process = null;
+        executor = executor
+            .CaptureProcess(p => process = p);
+            // Do not capture stdout or stderr; the windows timeout command will fail with ERROR: Input redirection is not supported
+
+        var cancellationToken = cts.Token;
+        if (behaviour == SyncBehaviour.Async)
+        {
+            await executor.Invoking(e => e.ExecuteAsync(cancellationToken)).Should().ThrowAsync<OperationCanceledException>();
+        }
+        else
+        {
+            executor.Invoking(e => e.Execute(cancellationToken)).Should().Throw<OperationCanceledException>();
+        }
+        
+        // we can't observe any exit code because Execute() threw an exception
+
+        process?.Should().NotBeNull();
+        EnsureProcessHasExited(process!);
+    }
+
+    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    public async Task CancellationToken_ShouldForceKillTheProcess_DoNotThrowOnCancellation(SyncBehaviour behaviour)
+    {
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken);
+        // Terminate the process after a short time so the test doesn't run forever
+        cts.CancelAfter(TimeSpan.FromSeconds(0.5));
+        
+        var executor = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? new ShellCommand("timeout.exe").WithArguments("/t 500 /nobreak")
+            : new ShellCommand("bash").WithArguments("-c \"sleep 500\"");
+
+        Process? process = null;
+        executor = executor
+            .WithOptions(ShellCommandOptions.DoNotThrowOnCancellation)
+            .CaptureProcess(p => process = p);
+            // Do not capture stdout or stderr; the windows timeout command will fail with ERROR: Input redirection is not supported
 
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(cts.Token)
@@ -102,14 +138,26 @@ public class ShellCommandFixture
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             exitCode.Should().BeLessOrEqualTo(0, "the process should have been terminated");
-            stdOut.ToString().Should().ContainEquivalentOf("Microsoft Windows", "the default command-line header would be written to stdout");
         }
         else
         {
             exitCode.Should().BeOneOf(SIG_KILL, SIG_TERM, 0, -1);
         }
 
-        stdErr.ToString().Should().BeEmpty("no messages should be written to stderr, and the process was terminated before the trailing newline got there");
+        process?.Should().NotBeNull();
+        EnsureProcessHasExited(process!);
+    }
+
+    static void EnsureProcessHasExited(Process process)
+    {
+        try
+        {
+            process.HasExited.Should().BeTrue("the process should have exited");
+        }
+        catch (InvalidOperationException e) when (e.Message is "No process is associated with this object.")
+        {
+            // process.HasExited throws this exception if you call HasExited on a process that has quit already; we expect this
+        }
     }
 
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
