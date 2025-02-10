@@ -118,19 +118,6 @@ namespace Octopus.Shellfish.Windows
                 => throw new NotImplementedException();
         }
 
-        class NoopSafeHandle : SafeHandle
-        {
-            public NoopSafeHandle(IntPtr handle) :
-                base(handle, false)
-            {
-            }
-
-            public override bool IsInvalid => false;
-
-            protected override bool ReleaseHandle()
-                => true;
-        }
-
 #pragma warning disable PC003 // Native API not available in UWP
         // Handles returned by GetProcessWindowStation and GetThreadDesktop should not be closed
         [DllImport("user32.dll", SetLastError = true)]
