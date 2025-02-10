@@ -21,14 +21,13 @@ namespace Octopus.Shellfish.Windows
             GrantAccess(username, domainName, hDesktop, desktopRightsAllAccess);
         }
 
-        static void GrantAccess(string username, string? domainName, IntPtr handle, int accessMask)
+        static void GrantAccess(string username, string? domainName, SafeHandle handle, int accessMask)
         {
-            SafeHandle safeHandle = new NoopSafeHandle(handle);
             var security =
                 new GenericSecurity(
                     false,
                     ResourceType.WindowObject,
-                    safeHandle,
+                    handle,
                     AccessControlSections.Access);
 
             var account = string.IsNullOrEmpty(domainName)
@@ -40,7 +39,7 @@ namespace Octopus.Shellfish.Windows
                     account,
                     accessMask,
                     AccessControlType.Allow));
-            security.Persist(safeHandle, AccessControlSections.Access);
+            security.Persist(handle, AccessControlSections.Access);
         }
 
         // Native API not available in UWP
@@ -119,7 +118,6 @@ namespace Octopus.Shellfish.Windows
                 => throw new NotImplementedException();
         }
 
-        // Handles returned by GetProcessWindowStation and GetThreadDesktop should not be closed
         class NoopSafeHandle : SafeHandle
         {
             public NoopSafeHandle(IntPtr handle) :
@@ -134,11 +132,12 @@ namespace Octopus.Shellfish.Windows
         }
 
 #pragma warning disable PC003 // Native API not available in UWP
+        // Handles returned by GetProcessWindowStation and GetThreadDesktop should not be closed
         [DllImport("user32.dll", SetLastError = true)]
-        static extern IntPtr GetProcessWindowStation();
+        static extern NonReleasingSafeHandle GetProcessWindowStation();
 
         [DllImport("user32.dll", SetLastError = true)]
-        static extern IntPtr GetThreadDesktop(int dwThreadId);
+        static extern NonReleasingSafeHandle GetThreadDesktop(int dwThreadId);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         static extern int GetCurrentThreadId();

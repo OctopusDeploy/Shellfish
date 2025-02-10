@@ -39,16 +39,16 @@ namespace Octopus.Shellfish.Windows
             LogonProvider logonProvider = LogonProvider.Default)
         {
             // See https://msdn.microsoft.com/en-us/library/windows/desktop/aa378184(v=vs.85).aspx
-            var hToken = IntPtr.Zero;
+            SafeAccessTokenHandle? handle = null;
             Win32Helper.Invoke(() => LogonUser(username,
                     domain,
                     password,
                     LogonType.Network,
                     LogonProvider.Default,
-                    out hToken),
+                    out handle),
                 $"Logon failed for the user '{username}'");
 
-            return new AccessToken(username, new SafeAccessTokenHandle(hToken));
+            return new AccessToken(username, handle!);
         }
 
         public void Dispose()
@@ -63,7 +63,7 @@ namespace Octopus.Shellfish.Windows
             string password,
             LogonType logonType,
             LogonProvider logonProvider,
-            out IntPtr hToken);
+            out SafeAccessTokenHandle hToken);
 #pragma warning restore PC003 // Native API not available in UWP
     }
 }
