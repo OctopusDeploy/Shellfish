@@ -137,7 +137,8 @@ public class ShellCommandFixture
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            exitCode.Should().BeLessOrEqualTo(0, "the process should have been terminated");
+            // timeout.exe will return 1 when interrupted
+            exitCode.Should().BeOneOf([-1, 0, 1], "the process should have been terminated");
         }
         else
         {
