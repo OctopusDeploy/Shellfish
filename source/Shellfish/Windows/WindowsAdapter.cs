@@ -10,9 +10,7 @@ using System.Text;
 
 namespace Octopus.Shellfish.Windows
 {
-#if NET5_0_OR_GREATER
     [SupportedOSPlatform("Windows")]
-#endif
     class WindowsAdapter : IXPlatAdapter
     {
         public void ConfigureStartInfoForUser(ProcessStartInfo startInfo, NetworkCredential runAs, IReadOnlyDictionary<string, string>? customEnvironmentVariables)

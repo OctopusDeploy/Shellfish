@@ -8,9 +8,7 @@ using System.Runtime.Versioning;
 
 namespace Octopus.Shellfish.Windows
 {
-#if NET5_0_OR_GREATER
     [SupportedOSPlatform("Windows")]
-#endif
     static class WindowsEnvironmentVariableHelper
     {
         static readonly object EnvironmentVariablesCacheLock = new object();

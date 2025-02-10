@@ -5,9 +5,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Octopus.Shellfish.Windows
 {
-#if NET5_0_OR_GREATER
     [SupportedOSPlatform("Windows")]
-#endif
     class UserProfile : IDisposable
     {
         readonly AccessToken token;

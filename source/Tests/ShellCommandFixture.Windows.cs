@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.Versioning;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,9 +16,7 @@ using Xunit;
 namespace Tests;
 
 // Windows-specific tests for ShellCommandExecutor
-#if NET5_0_OR_GREATER
-    [System.Runtime.Versioning.SupportedOSPlatform("Windows")]
-#endif
+[SupportedOSPlatform("Windows")]
 public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixture<WindowsUserClassFixture>
 {
 #if NET5_0_OR_GREATER
