@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Octopus.Shellfish.Windows
@@ -11,8 +10,7 @@ namespace Octopus.Shellfish.Windows
         {
             var env = IntPtr.Zero;
 
-            // See https://msdn.microsoft.com/en-us/library/windows/desktop/bb762270(v=vs.85).aspx
-            Win32Helper.Invoke(() => CreateEnvironmentBlock(out env, token.Handle, inheritFromCurrentProcess),
+            Win32Helper.Invoke(() => Interop.Userenv.CreateEnvironmentBlock(out env, token.Handle, inheritFromCurrentProcess),
                 $"Failed to load the environment variables for the user '{token.Username}'");
 
             var userEnvironment = new Dictionary<string, string>();
@@ -52,20 +50,11 @@ namespace Octopus.Shellfish.Windows
             }
             finally
             {
-                // See https://msdn.microsoft.com/en-us/library/windows/desktop/bb762274(v=vs.85).aspx
-                Win32Helper.Invoke(() => DestroyEnvironmentBlock(env),
+                Win32Helper.Invoke(() => Interop.Userenv.DestroyEnvironmentBlock(env),
                     $"Failed to destroy the environment variables structure for user '{token.Username}'");
             }
 
             return userEnvironment;
         }
-
-#pragma warning disable PC003 // Native API not available in UWP
-        [DllImport("userenv.dll", SetLastError = true)]
-        static extern bool CreateEnvironmentBlock(out IntPtr lpEnvironment, SafeAccessTokenHandle hToken, bool inheritFromCurrentProcess);
-
-        [DllImport("userenv.dll", SetLastError = true)]
-        static extern bool DestroyEnvironmentBlock(IntPtr lpEnvironment);
-#pragma warning restore PC003 // Native API not available in UWP
     }
 }

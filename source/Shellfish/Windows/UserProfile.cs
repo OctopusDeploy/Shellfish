@@ -19,14 +19,13 @@ namespace Octopus.Shellfish.Windows
 
         public static UserProfile Load(AccessToken token)
         {
-            var userProfile = new PROFILEINFO
+            var userProfile = new Interop.Userenv.ProfileInfo
             {
                 lpUserName = token.Username
             };
             userProfile.dwSize = Marshal.SizeOf(userProfile);
 
-            // See https://msdn.microsoft.com/en-us/library/windows/desktop/bb762281(v=vs.85).aspx
-            Win32Helper.Invoke(() => LoadUserProfile(token.Handle, ref userProfile),
+            Win32Helper.Invoke(() => Interop.Userenv.LoadUserProfile(token.Handle, ref userProfile),
                 $"Failed to load user profile for user '{token.Username}'");
 
             return new UserProfile(token, new SafeRegistryHandle(userProfile.hProfile, false));
@@ -34,9 +33,7 @@ namespace Octopus.Shellfish.Windows
 
         void Unload()
         {
-            // See https://msdn.microsoft.com/en-us/library/windows/desktop/bb762282(v=vs.85).aspx
-            // This function closes the registry handle for the user profile too
-            Win32Helper.Invoke(() => UnloadUserProfile(token.Handle, userProfile),
+            Win32Helper.Invoke(() => Interop.Userenv.UnloadUserProfile(token.Handle, userProfile),
                 $"Failed to unload user profile for user '{token.Username}'");
         }
 
@@ -48,26 +45,5 @@ namespace Octopus.Shellfish.Windows
                 userProfile.Dispose();
             }
         }
-
-        [StructLayout(LayoutKind.Sequential)]
-        struct PROFILEINFO
-        {
-            public int dwSize;
-            public readonly int dwFlags;
-            public string lpUserName;
-            public readonly string lpProfilePath;
-            public readonly string lpDefaultPath;
-            public readonly string lpServerName;
-            public readonly string lpPolicyPath;
-            public readonly IntPtr hProfile;
-        }
-
-#pragma warning disable PC003 // Native API not available in UWP
-        [DllImport("userenv.dll", SetLastError = true)]
-        static extern bool LoadUserProfile(SafeAccessTokenHandle hToken, ref PROFILEINFO lpProfileInfo);
-
-        [DllImport("userenv.dll", SetLastError = true)]
-        static extern bool UnloadUserProfile(SafeAccessTokenHandle hToken, SafeRegistryHandle hProfile);
-#pragma warning restore PC003 // Native API not available in UWP
     }
 }

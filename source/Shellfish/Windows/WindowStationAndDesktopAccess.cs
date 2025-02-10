@@ -13,10 +13,12 @@ namespace Octopus.Shellfish.Windows
     {
         public static void GrantAccessToWindowStationAndDesktop(string username, string? domainName = null)
         {
-            var hWindowStation = Win32Helper.Invoke(() => GetProcessWindowStation(), "Failed to get a handle to the current window station for this process");
+            var hWindowStation = Win32Helper.Invoke(Interop.User32.GetProcessWindowStation,
+                "Failed to get a handle to the current window station for this process");
             const int windowStationAllAccess = 0x000f037f;
             GrantAccess(username, domainName, hWindowStation, windowStationAllAccess);
-            var hDesktop = Win32Helper.Invoke(() => GetThreadDesktop(GetCurrentThreadId()), "Failed to the a handle to the desktop for the current thread");
+            var hDesktop = Win32Helper.Invoke(() => Interop.User32.GetThreadDesktop(Interop.Kernel32.GetCurrentThreadId()),
+                "Failed to the a handle to the desktop for the current thread");
             const int desktopRightsAllAccess = 0x000f01ff;
             GrantAccess(username, domainName, hDesktop, desktopRightsAllAccess);
         }
@@ -117,17 +119,5 @@ namespace Octopus.Shellfish.Windows
                 AuditFlags flags)
                 => throw new NotImplementedException();
         }
-
-#pragma warning disable PC003 // Native API not available in UWP
-        // Handles returned by GetProcessWindowStation and GetThreadDesktop should not be closed
-        [DllImport("user32.dll", SetLastError = true)]
-        static extern NonReleasingSafeHandle GetProcessWindowStation();
-
-        [DllImport("user32.dll", SetLastError = true)]
-        static extern NonReleasingSafeHandle GetThreadDesktop(int dwThreadId);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        static extern int GetCurrentThreadId();
-#pragma warning restore PC003
     }
 }
