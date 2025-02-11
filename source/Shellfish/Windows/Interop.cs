@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Runtime.InteropServices;
-using Microsoft.Win32.SafeHandles;
 
 namespace Octopus.Shellfish.Windows;
 
@@ -114,7 +113,7 @@ static class Interop
         // See https://msdn.microsoft.com/en-us/library/windows/desktop/bb762282(v=vs.85).aspx
         // This function closes the registry handle for the user profile too
         [DllImport(Libraries.Userenv, SetLastError = true)]
-        internal static extern bool UnloadUserProfile(SafeAccessTokenHandle hToken, SafeRegistryHandle hProfile);
+        internal static extern bool UnloadUserProfile(SafeAccessTokenHandle hToken, IntPtr hProfile);
 
         [StructLayout(LayoutKind.Sequential)]
         internal struct ProfileInfo
