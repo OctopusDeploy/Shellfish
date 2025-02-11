@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Microsoft.Win32.SafeHandles;
@@ -19,15 +20,8 @@ namespace Octopus.Shellfish.Windows
 
         public static UserProfile Load(AccessToken token)
         {
-            var userProfile = new PROFILEINFO
-            {
-                lpUserName = token.Username
-            };
-            userProfile.dwSize = Marshal.SizeOf(userProfile);
-
             // See https://msdn.microsoft.com/en-us/library/windows/desktop/bb762281(v=vs.85).aspx
-            Win32Helper.Invoke(() => LoadUserProfile(token.Handle, ref userProfile),
-                $"Failed to load user profile for user '{token.Username}'");
+            var userProfile = LoadUserProfile(token.Handle, token.Username);
 
             return new UserProfile(token, new SafeRegistryHandle(userProfile.hProfile, false));
         }
@@ -36,8 +30,7 @@ namespace Octopus.Shellfish.Windows
         {
             // See https://msdn.microsoft.com/en-us/library/windows/desktop/bb762282(v=vs.85).aspx
             // This function closes the registry handle for the user profile too
-            Win32Helper.Invoke(() => UnloadUserProfile(token.Handle, userProfile),
-                $"Failed to unload user profile for user '{token.Username}'");
+            UnloadUserProfile(token.Handle, userProfile);
         }
 
         public void Dispose()
@@ -62,12 +55,33 @@ namespace Octopus.Shellfish.Windows
             public readonly IntPtr hProfile;
         }
 
-#pragma warning disable PC003 // Native API not available in UWP
-        [DllImport("userenv.dll", SetLastError = true)]
-        static extern bool LoadUserProfile(SafeAccessTokenHandle hToken, ref PROFILEINFO lpProfileInfo);
+        static PROFILEINFO LoadUserProfile(SafeAccessTokenHandle hToken, string username)
+        {
+            var userProfile = new PROFILEINFO
+            {
+                lpUserName = username
+            };
+            userProfile.dwSize = Marshal.SizeOf(userProfile);
 
-        [DllImport("userenv.dll", SetLastError = true)]
-        static extern bool UnloadUserProfile(SafeAccessTokenHandle hToken, SafeRegistryHandle hProfile);
-#pragma warning restore PC003 // Native API not available in UWP
+            if (!NativeMethods.LoadUserProfile(hToken, ref userProfile))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "Failed to load user profile for user '{username}'");
+
+            return userProfile;
+        }
+
+        static void UnloadUserProfile(SafeAccessTokenHandle hToken, SafeRegistryHandle hProfile)
+        {
+            if (!NativeMethods.UnloadUserProfile(hToken, hProfile))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "Failed to unload user profile");
+        }
+
+        static class NativeMethods
+        {
+            [DllImport("userenv.dll", SetLastError = true)]
+            public static extern bool LoadUserProfile(SafeAccessTokenHandle hToken, ref PROFILEINFO lpProfileInfo);
+
+            [DllImport("userenv.dll", SetLastError = true)]
+            public static extern bool UnloadUserProfile(SafeAccessTokenHandle hToken, SafeRegistryHandle hProfile);
+        }
     }
 }

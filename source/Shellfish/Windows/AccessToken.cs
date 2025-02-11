@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 
 namespace Octopus.Shellfish.Windows
@@ -39,31 +40,37 @@ namespace Octopus.Shellfish.Windows
             LogonProvider logonProvider = LogonProvider.Default)
         {
             // See https://msdn.microsoft.com/en-us/library/windows/desktop/aa378184(v=vs.85).aspx
-            SafeAccessTokenHandle? handle = null;
-            Win32Helper.Invoke(() => LogonUser(username,
-                    domain,
-                    password,
-                    LogonType.Network,
-                    LogonProvider.Default,
-                    out handle),
-                $"Logon failed for the user '{username}'");
+            var handle = LogonUser(username, domain, password, LogonType.Network, LogonProvider.Default);
 
-            return new AccessToken(username, handle!);
+            return new AccessToken(username, handle);
         }
 
         public void Dispose()
         {
-            Handle?.Dispose();
+            Handle.Dispose();
         }
 
-        [DllImport("advapi32.dll", SetLastError = true)]
-#pragma warning disable PC003 // Native API not available in UWP
-        static extern bool LogonUser(string username,
+        static SafeAccessTokenHandle LogonUser(string username,
             string domain,
             string password,
             LogonType logonType,
-            LogonProvider logonProvider,
-            out SafeAccessTokenHandle hToken);
-#pragma warning restore PC003 // Native API not available in UWP
+            LogonProvider logonProvider)
+        {
+            if(!NativeMethods.LogonUser(username, domain, password, logonType, logonProvider, out var handle))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), $"Logon failed for the user '{username}'");
+
+            return handle;
+        }
+        
+        static class NativeMethods
+        {
+            [DllImport("advapi32.dll", SetLastError = true)]
+            public static extern bool LogonUser(string username,
+                string domain,
+                string password,
+                LogonType logonType,
+                LogonProvider logonProvider,
+                out SafeAccessTokenHandle hToken);
+        }
     }
 }
