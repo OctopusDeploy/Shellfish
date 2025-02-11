@@ -1,19 +1,11 @@
 using System;
 using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 
 namespace Octopus.Shellfish.Windows
 {
-    sealed class SafeAccessTokenHandle : SafeHandle
+    sealed class SafeAccessTokenHandle() : SafeHandleZeroOrMinusOneIsInvalid(true)
     {
-        // 0 is an Invalid Handle
-        public SafeAccessTokenHandle(IntPtr handle) : base(handle, true)
-        {
-        }
-
-        public static SafeAccessTokenHandle InvalidHandle => new SafeAccessTokenHandle(IntPtr.Zero);
-
-        public override bool IsInvalid => handle == IntPtr.Zero || handle == new IntPtr(-1);
-
         protected override bool ReleaseHandle()
             => CloseHandle(handle);
 

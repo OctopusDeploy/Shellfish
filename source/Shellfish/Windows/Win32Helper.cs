@@ -1,46 +1,24 @@
 using System;
 using System.ComponentModel;
+using System.Runtime.InteropServices;
 
 namespace Octopus.Shellfish.Windows
 {
     static class Win32Helper
     {
-        public static bool Invoke(Func<bool> nativeMethod, string failureDescription)
+        public static void Invoke(Func<bool> nativeMethod, string failureDescription)
         {
-            try
+            if (!nativeMethod())
             {
-                return nativeMethod() ? true : throw new Win32Exception();
-            }
-            catch (Win32Exception ex)
-            {
-                throw new Exception($"{failureDescription}: {ex.Message}", ex);
+                throw new Exception(failureDescription, new Win32Exception());
             }
         }
 
-        public static T Invoke<T>(Func<T> nativeMethod, Func<T, bool> successful, string failureDescription)
+        public static THandle Invoke<THandle>(Func<THandle> nativeMethod, string failureDescription)
+            where THandle : SafeHandle
         {
-            try
-            {
-                var result = nativeMethod();
-                return successful(result) ? result : throw new Win32Exception();
-            }
-            catch (Win32Exception ex)
-            {
-                throw new Exception($"{failureDescription}: {ex.Message}", ex);
-            }
-        }
-
-        public static IntPtr Invoke(Func<IntPtr> nativeMethod, string failureDescription)
-        {
-            try
-            {
-                var result = nativeMethod();
-                return result != IntPtr.Zero ? result : throw new Win32Exception();
-            }
-            catch (Win32Exception ex)
-            {
-                throw new Exception($"{failureDescription}: {ex.Message}", ex);
-            }
+            var result = nativeMethod();
+            return !result.IsInvalid ? result : throw new Exception(failureDescription, new Win32Exception());
         }
     }
 }
