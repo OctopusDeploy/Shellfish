@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
+using System.ComponentModel;
 using System.Text;
 
 namespace Octopus.Shellfish.Windows
@@ -9,11 +9,8 @@ namespace Octopus.Shellfish.Windows
     {
         internal static Dictionary<string, string> GetEnvironmentVariablesForUser(AccessToken token, bool inheritFromCurrentProcess)
         {
-            var env = IntPtr.Zero;
-
             // See https://msdn.microsoft.com/en-us/library/windows/desktop/bb762270(v=vs.85).aspx
-            Win32Helper.Invoke(() => CreateEnvironmentBlock(out env, token.Handle, inheritFromCurrentProcess),
-                $"Failed to load the environment variables for the user '{token.Username}'");
+            var env = CreateEnvironmentBlock(token.Handle, inheritFromCurrentProcess);
 
             var userEnvironment = new Dictionary<string, string>();
             try
@@ -53,19 +50,24 @@ namespace Octopus.Shellfish.Windows
             finally
             {
                 // See https://msdn.microsoft.com/en-us/library/windows/desktop/bb762274(v=vs.85).aspx
-                Win32Helper.Invoke(() => DestroyEnvironmentBlock(env),
-                    $"Failed to destroy the environment variables structure for user '{token.Username}'");
+                DestroyEnvironmentBlock(env);
             }
 
             return userEnvironment;
         }
 
-#pragma warning disable PC003 // Native API not available in UWP
-        [DllImport("userenv.dll", SetLastError = true)]
-        static extern bool CreateEnvironmentBlock(out IntPtr lpEnvironment, SafeAccessTokenHandle hToken, bool inheritFromCurrentProcess);
+        static IntPtr CreateEnvironmentBlock(SafeAccessTokenHandle hToken, bool inheritFromCurrentProcess)
+        {
+            if (!Interop.Userenv.CreateEnvironmentBlock(out IntPtr lpEnvironment, hToken, inheritFromCurrentProcess))
+                throw new Win32Exception();
 
-        [DllImport("userenv.dll", SetLastError = true)]
-        static extern bool DestroyEnvironmentBlock(IntPtr lpEnvironment);
-#pragma warning restore PC003 // Native API not available in UWP
+            return lpEnvironment;
+        }
+
+        static void DestroyEnvironmentBlock(IntPtr lpEnvironment)
+        {
+            if (!Interop.Userenv.DestroyEnvironmentBlock(lpEnvironment))
+                throw new Win32Exception();
+        }
     }
 }
