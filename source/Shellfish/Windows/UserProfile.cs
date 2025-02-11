@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Microsoft.Win32.SafeHandles;
@@ -19,22 +20,17 @@ namespace Octopus.Shellfish.Windows
 
         public static UserProfile Load(AccessToken token)
         {
-            var userProfile = new Interop.Userenv.ProfileInfo
-            {
-                lpUserName = token.Username
-            };
-            userProfile.dwSize = Marshal.SizeOf(userProfile);
-
-            Win32Helper.Invoke(() => Interop.Userenv.LoadUserProfile(token.Handle, ref userProfile),
-                $"Failed to load user profile for user '{token.Username}'");
+            // See https://msdn.microsoft.com/en-us/library/windows/desktop/bb762281(v=vs.85).aspx
+            var userProfile = LoadUserProfile(token.Handle, token.Username);
 
             return new UserProfile(token, new SafeRegistryHandle(userProfile.hProfile, false));
         }
 
         void Unload()
         {
-            Win32Helper.Invoke(() => Interop.Userenv.UnloadUserProfile(token.Handle, userProfile),
-                $"Failed to unload user profile for user '{token.Username}'");
+            // See https://msdn.microsoft.com/en-us/library/windows/desktop/bb762282(v=vs.85).aspx
+            // This function closes the registry handle for the user profile too
+            UnloadUserProfile(token.Handle, userProfile);
         }
 
         public void Dispose()
@@ -44,6 +40,26 @@ namespace Octopus.Shellfish.Windows
                 Unload();
                 userProfile.Dispose();
             }
+        }
+
+        static Interop.Userenv.ProfileInfo LoadUserProfile(SafeAccessTokenHandle hToken, string username)
+        {
+            var userProfile = new Interop.Userenv.ProfileInfo
+            {
+                lpUserName = username
+            };
+            userProfile.dwSize = Marshal.SizeOf(userProfile);
+
+            if (!Interop.Userenv.LoadUserProfile(hToken, ref userProfile))
+                throw new Win32Exception();
+
+            return userProfile;
+        }
+
+        static void UnloadUserProfile(SafeAccessTokenHandle hToken, SafeRegistryHandle hProfile)
+        {
+            if (!Interop.Userenv.UnloadUserProfile(hToken, hProfile))
+                throw new Win32Exception();
         }
     }
 }

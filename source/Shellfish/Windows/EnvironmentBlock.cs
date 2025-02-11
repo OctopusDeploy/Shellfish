@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Text;
 
 namespace Octopus.Shellfish.Windows
@@ -8,10 +9,8 @@ namespace Octopus.Shellfish.Windows
     {
         internal static Dictionary<string, string> GetEnvironmentVariablesForUser(AccessToken token, bool inheritFromCurrentProcess)
         {
-            var env = IntPtr.Zero;
-
-            Win32Helper.Invoke(() => Interop.Userenv.CreateEnvironmentBlock(out env, token.Handle, inheritFromCurrentProcess),
-                $"Failed to load the environment variables for the user '{token.Username}'");
+            // See https://msdn.microsoft.com/en-us/library/windows/desktop/bb762270(v=vs.85).aspx
+            var env = CreateEnvironmentBlock(token.Handle, inheritFromCurrentProcess);
 
             var userEnvironment = new Dictionary<string, string>();
             try
@@ -50,11 +49,25 @@ namespace Octopus.Shellfish.Windows
             }
             finally
             {
-                Win32Helper.Invoke(() => Interop.Userenv.DestroyEnvironmentBlock(env),
-                    $"Failed to destroy the environment variables structure for user '{token.Username}'");
+                // See https://msdn.microsoft.com/en-us/library/windows/desktop/bb762274(v=vs.85).aspx
+                DestroyEnvironmentBlock(env);
             }
 
             return userEnvironment;
+        }
+
+        static IntPtr CreateEnvironmentBlock(SafeAccessTokenHandle hToken, bool inheritFromCurrentProcess)
+        {
+            if (!Interop.Userenv.CreateEnvironmentBlock(out IntPtr lpEnvironment, hToken, inheritFromCurrentProcess))
+                throw new Win32Exception();
+
+            return lpEnvironment;
+        }
+
+        static void DestroyEnvironmentBlock(IntPtr lpEnvironment)
+        {
+            if (!Interop.Userenv.DestroyEnvironmentBlock(lpEnvironment))
+                throw new Win32Exception();
         }
     }
 }
