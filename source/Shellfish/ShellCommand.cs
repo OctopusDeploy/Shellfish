@@ -124,7 +124,7 @@ public class ShellCommand
 
     /// <summary>
     /// Adds an output target for the standard output stream of the process.
-    /// Typically, an extension method like WithStdOutTarget(StringBuilder) or WithStdOutTarget(Action&lt;string&gt;) would be used over this. 
+    /// Typically, an extension method like WithStdOutTarget(StringBuilder) or WithStdOutTarget(Action&lt;string&gt;) would be used over this.
     /// </summary>
     public ShellCommand WithStdOutTarget(IOutputTarget target)
     {
@@ -142,7 +142,7 @@ public class ShellCommand
 
     /// <summary>
     /// Adds an output target for the standard error stream of the process.
-    /// Typically, an extension method like WithStdErrTarget(StringBuilder) or WithStdErrTarget(Action&lt;string&gt;) would be used over this. 
+    /// Typically, an extension method like WithStdErrTarget(StringBuilder) or WithStdErrTarget(Action&lt;string&gt;) would be used over this.
     /// </summary>
     public ShellCommand WithStdErrTarget(IOutputTarget target)
     {
@@ -205,5 +205,11 @@ public class ShellCommand
         await process.WaitForExitAsync(cancellationToken);
 
         return new ShellCommandResult(process.SafelyGetExitCode());
+    }
+
+    public override string ToString()
+    {
+        var arguments = argumentList != null ? string.Join(" ", argumentList) : argumentString;
+        return $"{executable} {arguments}";
     }
 }
