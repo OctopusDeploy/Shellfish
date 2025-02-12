@@ -15,6 +15,7 @@ Octopus.Shellfish.ShellCommand.WithStdErrTarget
 Octopus.Shellfish.ShellCommand.WithOptions
 Octopus.Shellfish.ShellCommand.Execute
 Octopus.Shellfish.ShellCommand.ExecuteAsync
+Octopus.Shellfish.ShellCommand.ToString
 Octopus.Shellfish.ShellCommandOptions.value__
 Octopus.Shellfish.ShellCommandOptions.None
 Octopus.Shellfish.ShellCommandOptions.DoNotThrowOnCancellation
