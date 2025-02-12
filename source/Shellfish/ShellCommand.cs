@@ -211,9 +211,10 @@ public class ShellCommand
     {
         var arguments = string.Empty;
         if (argumentString is not null && argumentList is { Count: > 0 })
-            throw new InvalidOperationException();
-
-        if (argumentString is not null)
+        {
+            arguments = "<invalid arguments: both argumentString and argumentList have been supplied>";
+        }
+        else if (argumentString is not null)
         {
             arguments = argumentString;
         }

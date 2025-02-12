@@ -394,6 +394,16 @@ public class ShellCommandFixture
         command.ToString().Should().Be("echo apple \"banana split\" \"--thing=\\\"quotedValue\\\"\" --option cherry");
     }
 
+    [Fact]
+    public void ToStringDoesNotThrowWithInvalidArguments()
+    {
+        var command = new ShellCommand("echo")
+            .WithArguments(["hello"])
+            .WithArguments("world");
+
+        command.ToString().Should().Be("echo <invalid arguments: both argumentString and argumentList have been supplied>");
+    }
+
     static string EchoEnvironmentVariable(string varName)
         => RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? $"%{varName}%" : $"${varName}";
 }
