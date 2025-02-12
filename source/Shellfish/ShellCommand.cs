@@ -209,7 +209,19 @@ public class ShellCommand
 
     public override string ToString()
     {
-        var arguments = argumentList != null ? string.Join(" ", argumentList) : argumentString;
+        var arguments = string.Empty;
+        if (argumentString is not null && argumentList is { Count: > 0 })
+            throw new InvalidOperationException();
+
+        if (argumentString is not null)
+        {
+            arguments = argumentString;
+        }
+        else if (argumentList is { Count: > 0 })
+        {
+            arguments = PasteArguments.JoinArguments(argumentList);
+        }
+
         return $"{executable} {arguments}";
     }
 }
