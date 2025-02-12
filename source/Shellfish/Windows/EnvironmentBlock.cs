@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Text;
+using System.Runtime.InteropServices;
 
 namespace Octopus.Shellfish.Windows
 {
     static class EnvironmentBlock
     {
+        static readonly char[] Separators = ['='];
+
         internal static Dictionary<string, string> GetEnvironmentVariablesForUser(AccessToken token, bool inheritFromCurrentProcess)
         {
             // See https://msdn.microsoft.com/en-us/library/windows/desktop/bb762270(v=vs.85).aspx
@@ -15,36 +17,20 @@ namespace Octopus.Shellfish.Windows
             var userEnvironment = new Dictionary<string, string>();
             try
             {
-                var testData = new StringBuilder();
-                unsafe
+                // The environment block is an array of null-terminated Unicode strings.
+                // Key and Value are separated by =
+                // The list ends with two nulls (\0\0).
+                var ptr = env;
+                var str = Marshal.PtrToStringUni(ptr);
+                while (str?.Length > 0)
                 {
-                    // The environment block is an array of null-terminated Unicode strings.
-                    // Key and Value are separated by =
-                    // The list ends with two nulls (\0\0).
-                    var start = (short*)env.ToPointer();
-                    var done = false;
-                    var current = start;
-                    while (!done)
-                    {
-                        if (testData.Length > 0 && *current == 0 && current != start)
-                        {
-                            var data = testData.ToString();
-                            var index = data.IndexOf('=');
-                            if (index == -1)
-                                userEnvironment.Add(data, "");
-                            else if (index == data.Length - 1)
-                                userEnvironment.Add(data.Substring(0, index), "");
-                            else
-                                userEnvironment.Add(data.Substring(0, index), data.Substring(index + 1));
-                            testData.Length = 0;
-                        }
+                    var vals = str.Split(Separators, 2);
+                    userEnvironment.Add(vals[0], vals[1]);
 
-                        if (*current == 0 && current != start && *(current - 1) == 0)
-                            done = true;
-                        if (*current != 0)
-                            testData.Append((char)*current);
-                        current++;
-                    }
+                    // advance pointer to the end of the current string
+                    // two bytes per character plus two-byte null terminator
+                    ptr = IntPtr.Add(ptr, str.Length * 2 + 2);
+                    str = Marshal.PtrToStringUni(ptr);
                 }
             }
             finally
