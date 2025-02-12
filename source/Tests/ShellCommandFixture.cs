@@ -105,7 +105,7 @@ public class ShellCommandFixture
         {
             executor.Invoking(e => e.Execute(cancellationToken)).Should().Throw<OperationCanceledException>();
         }
-        
+
         // we can't observe any exit code because Execute() threw an exception
 
         process?.Should().NotBeNull();
@@ -118,7 +118,7 @@ public class ShellCommandFixture
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken);
         // Terminate the process after a short time so the test doesn't run forever
         cts.CancelAfter(TimeSpan.FromSeconds(0.5));
-        
+
         var executor = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
             ? new ShellCommand("timeout.exe").WithArguments("/t 500 /nobreak")
             : new ShellCommand("bash").WithArguments("-c \"sleep 500\"");
@@ -352,7 +352,7 @@ public class ShellCommandFixture
         stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
 
         var expectedQuotedValue = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-            ? "--thing=\\\"quotedValue\\\"" // on windows echo adds extra quoting; this is an artifact of cmd.exe not our code 
+            ? "--thing=\\\"quotedValue\\\"" // on windows echo adds extra quoting; this is an artifact of cmd.exe not our code
             : "--thing=\"quotedValue\"";
 
         stdOut.ToString()
@@ -365,6 +365,33 @@ public class ShellCommandFixture
                 "cherry",
                 "" // it has a trailing newline at the end
             ]));
+    }
+
+    [Fact]
+    public void ToStringWorksForArgumentString()
+    {
+        var command = new ShellCommand("echo")
+            .WithArguments("hello world");
+
+        command.ToString().Should().Be("echo hello world");
+    }
+
+    [Fact]
+    public void ToStringWorksForArgumentList()
+    {
+        string[] inputArgs =
+        [
+            "apple",
+            "banana split",
+            "--thing=\"quotedValue\"",
+            "--option",
+            "cherry"
+        ];
+
+        var command = new ShellCommand("echo")
+            .WithArguments(inputArgs);
+
+        command.ToString().Should().Be("echo apple \"banana split\" \"--thing=\\\"quotedValue\\\"\" --option cherry");
     }
 
     static string EchoEnvironmentVariable(string varName)
