@@ -2,7 +2,6 @@ using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
-using Microsoft.Win32.SafeHandles;
 
 namespace Octopus.Shellfish.Windows
 {
@@ -10,9 +9,9 @@ namespace Octopus.Shellfish.Windows
     class UserProfile : IDisposable
     {
         readonly AccessToken token;
-        readonly SafeRegistryHandle userProfile;
+        readonly IntPtr userProfile;
 
-        UserProfile(AccessToken token, SafeRegistryHandle userProfile)
+        UserProfile(AccessToken token, IntPtr userProfile)
         {
             this.token = token;
             this.userProfile = userProfile;
@@ -23,7 +22,7 @@ namespace Octopus.Shellfish.Windows
             // See https://msdn.microsoft.com/en-us/library/windows/desktop/bb762281(v=vs.85).aspx
             var userProfile = LoadUserProfile(token.Handle, token.Username);
 
-            return new UserProfile(token, new SafeRegistryHandle(userProfile.hProfile, false));
+            return new UserProfile(token, userProfile.hProfile);
         }
 
         void Unload()
@@ -35,11 +34,7 @@ namespace Octopus.Shellfish.Windows
 
         public void Dispose()
         {
-            if (userProfile != null && !userProfile.IsClosed)
-            {
-                Unload();
-                userProfile.Dispose();
-            }
+            Unload();
         }
 
         static Interop.Userenv.ProfileInfo LoadUserProfile(SafeAccessTokenHandle hToken, string username)
@@ -56,7 +51,7 @@ namespace Octopus.Shellfish.Windows
             return userProfile;
         }
 
-        static void UnloadUserProfile(SafeAccessTokenHandle hToken, SafeRegistryHandle hProfile)
+        static void UnloadUserProfile(SafeAccessTokenHandle hToken, IntPtr hProfile)
         {
             if (!Interop.Userenv.UnloadUserProfile(hToken, hProfile))
                 throw new Win32Exception();
