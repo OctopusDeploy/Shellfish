@@ -31,8 +31,7 @@ class ShellfishProcess : IDisposable
 
     public ShellfishProcess(
         string executable,
-        string? argumentString,
-        List<string>? argumentList,
+        ShellCommandArguments arguments,
         string? workingDirectory,
         IReadOnlyDictionary<string, string>? environmentVariables,
         NetworkCredential? credential,
@@ -47,7 +46,7 @@ class ShellfishProcess : IDisposable
         this.onCaptureProcess = onCaptureProcess;
         process.StartInfo.FileName = executable;
 
-        ConfigureArguments(argumentString, argumentList);
+        ConfigureArguments(arguments);
 
         if (workingDirectory is not null) process.StartInfo.WorkingDirectory = workingDirectory;
 
@@ -165,24 +164,24 @@ class ShellfishProcess : IDisposable
         inputState?.Begin(process.StandardInput);
     }
 
-    void ConfigureArguments(string? argumentString, List<string>? argumentList)
+    void ConfigureArguments(ShellCommandArguments arguments)
     {
-        if (argumentString is not null && argumentList is { Count: > 0 })
-            throw new InvalidOperationException();
-
-        if (argumentString is not null)
+        switch (arguments)
         {
-            process.StartInfo.Arguments = argumentString;
-        }
-        else if (argumentList is { Count: > 0 })
-        {
+            case ShellCommandArguments.StringType s:
+                process.StartInfo.Arguments = s.Value;
+                break;
+            case ShellCommandArguments.ArgumentListType { Values.Length: > 0 } l:
 #if NET5_0_OR_GREATER
             // Prefer ArgumentList if we're on net5.0 or greater. Our polyfill should have the same behaviour, but
             // If we stick with the CLR we will pick up optimizations and bugfixes going forward           
-            foreach (var arg in argumentList) process.StartInfo.ArgumentList.Add(arg);
+            foreach (var arg in l.Values) process.StartInfo.ArgumentList.Add(arg);
 #else
-            process.StartInfo.Arguments = PasteArguments.JoinArguments(argumentList);
+                process.StartInfo.Arguments = PasteArguments.JoinArguments(l.Values);
 #endif
+                break;
+            
+            // Deliberately no default case here: ShellCommandArguments.NoArgumentsType and Empty list are no-ops
         }
     }
 

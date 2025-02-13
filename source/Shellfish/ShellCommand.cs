@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Net;
 using System.Runtime.Versioning;
 using System.Text;
@@ -15,8 +16,7 @@ namespace Octopus.Shellfish;
 public class ShellCommand
 {
     readonly string executable;
-    List<string>? argumentList;
-    string? argumentString;
+    ShellCommandArguments arguments = ShellCommandArguments.None;
     string? workingDirectory;
     IReadOnlyDictionary<string, string>? environmentVariables;
     NetworkCredential? windowsCredential;
@@ -61,9 +61,7 @@ public class ShellCommand
     /// </summary>
     public ShellCommand WithArguments(IEnumerable<string> argList)
     {
-        argumentList ??= new List<string>();
-        argumentList.Clear();
-        argumentList.AddRange(argList);
+        arguments = ShellCommandArguments.List(argList.ToArray());
         return this;
     }
 
@@ -73,7 +71,7 @@ public class ShellCommand
     /// </summary>
     public ShellCommand WithArguments(string argString)
     {
-        argumentString = argString;
+        arguments = ShellCommandArguments.String(argString);
         return this;
     }
 
@@ -164,8 +162,7 @@ public class ShellCommand
     {
         using var process = new ShellfishProcess(
             executable,
-            argumentString,
-            argumentList,
+            arguments,
             workingDirectory,
             environmentVariables,
             windowsCredential,
@@ -189,8 +186,7 @@ public class ShellCommand
     {
         using var process = new ShellfishProcess(
             executable,
-            argumentString,
-            argumentList,
+            arguments,
             workingDirectory,
             environmentVariables,
             windowsCredential,
@@ -207,32 +203,25 @@ public class ShellCommand
         return new ShellCommandResult(process.SafelyGetExitCode());
     }
 
-    public override string ToString()
-    {
-        return ToString(false);
-    }
+    public override string ToString() => ToString(false);
 
     public string ToString(bool includeArguments)
     {
-        var arguments = "<arguments>";
+        switch (arguments)
+        {
+            case ShellCommandArguments.StringType s:
+            {
+                var argumentsAsString = includeArguments ? s.Value : "<arguments>";
+                return $"{executable} {argumentsAsString}";
+            }
+            case ShellCommandArguments.ArgumentListType { Values.Length: > 0 } l:
+            {
+                var argumentsAsString = includeArguments ? PasteArguments.JoinArguments(l.Values) : $"<{l.Values.Length} arguments>";
+                return $"{executable} {argumentsAsString}";
+            }
 
-        if (argumentString is not null && argumentList is { Count: > 0 })
-        {
-            arguments = "<invalid arguments: both argumentString and argumentList have been supplied>";
+            default:
+                return executable;
         }
-        else if (argumentString is not null)
-        {
-            arguments = includeArguments
-                ? argumentString
-                : "<arguments>";
-        }
-        else if (argumentList is { Count: > 0 })
-        {
-            arguments = includeArguments
-                ? PasteArguments.JoinArguments(argumentList)
-                : $"<{argumentList.Count} arguments>";
-        }
-
-        return $"{executable} {arguments}";
     }
 }

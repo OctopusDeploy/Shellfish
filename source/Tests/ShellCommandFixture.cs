@@ -422,13 +422,16 @@ public class ShellCommandFixture
     }
 
     [Fact]
-    public void ToStringDoesNotThrowWithInvalidArguments()
+    public void ArgumentsSpecifiedMoreThanOnce()
     {
+        // The second call to WithArguments overwrites the first, so this isn't really worth testing, but
+        // we include it to demonstrate the behaviour
         var command = new ShellCommand("echo")
             .WithArguments(["hello"])
             .WithArguments("world");
 
-        command.ToString().Should().Be("echo <invalid arguments: both argumentString and argumentList have been supplied>");
+        command.ToString().Should().Be("echo <arguments>");
+        command.ToString(true).Should().Be("echo world");
     }
 
     static string EchoEnvironmentVariable(string varName)
