@@ -368,16 +368,16 @@ public class ShellCommandFixture
     }
 
     [Fact]
-    public void ToStringWorksForArgumentString()
+    public void ToStringWithArgumentsWorksForArgumentString()
     {
         var command = new ShellCommand("echo")
             .WithArguments("hello world");
 
-        command.ToString().Should().Be("echo hello world");
+        command.ToString(true).Should().Be("echo hello world");
     }
 
     [Fact]
-    public void ToStringWorksForArgumentList()
+    public void ToStringWithArgumentsWorksForArgumentList()
     {
         string[] inputArgs =
         [
@@ -391,7 +391,34 @@ public class ShellCommandFixture
         var command = new ShellCommand("echo")
             .WithArguments(inputArgs);
 
-        command.ToString().Should().Be("echo apple \"banana split\" \"--thing=\\\"quotedValue\\\"\" --option cherry");
+        command.ToString(true).Should().Be("echo apple \"banana split\" \"--thing=\\\"quotedValue\\\"\" --option cherry");
+    }
+
+    [Fact]
+    public void ToStringWithoutArgumentsOmitsArgumentsString()
+    {
+        var command = new ShellCommand("echo")
+            .WithArguments("hello world");
+
+        command.ToString().Should().Be("echo <arguments>");
+    }
+
+    [Fact]
+    public void ToStringWithoutArgumentsOmitsArgumentsList()
+    {
+        string[] inputArgs =
+        [
+            "apple",
+            "banana split",
+            "--thing=\"quotedValue\"",
+            "--option",
+            "cherry"
+        ];
+
+        var command = new ShellCommand("echo")
+            .WithArguments(inputArgs);
+
+        command.ToString().Should().Be("echo <5 arguments>");
     }
 
     [Fact]

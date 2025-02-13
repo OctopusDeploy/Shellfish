@@ -209,18 +209,28 @@ public class ShellCommand
 
     public override string ToString()
     {
-        var arguments = string.Empty;
+        return ToString(false);
+    }
+
+    public string ToString(bool includeArguments)
+    {
+        var arguments = "<arguments>";
+
         if (argumentString is not null && argumentList is { Count: > 0 })
         {
             arguments = "<invalid arguments: both argumentString and argumentList have been supplied>";
         }
         else if (argumentString is not null)
         {
-            arguments = argumentString;
+            arguments = includeArguments
+                ? argumentString
+                : "<arguments>";
         }
         else if (argumentList is { Count: > 0 })
         {
-            arguments = PasteArguments.JoinArguments(argumentList);
+            arguments = includeArguments
+                ? PasteArguments.JoinArguments(argumentList)
+                : $"<{argumentList.Count} arguments>";
         }
 
         return $"{executable} {arguments}";
