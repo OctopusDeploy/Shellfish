@@ -124,7 +124,7 @@ public class ShellCommand
 
     /// <summary>
     /// Adds an output target for the standard output stream of the process.
-    /// Typically, an extension method like WithStdOutTarget(StringBuilder) or WithStdOutTarget(Action&lt;string&gt;) would be used over this. 
+    /// Typically, an extension method like WithStdOutTarget(StringBuilder) or WithStdOutTarget(Action&lt;string&gt;) would be used over this.
     /// </summary>
     public ShellCommand WithStdOutTarget(IOutputTarget target)
     {
@@ -142,7 +142,7 @@ public class ShellCommand
 
     /// <summary>
     /// Adds an output target for the standard error stream of the process.
-    /// Typically, an extension method like WithStdErrTarget(StringBuilder) or WithStdErrTarget(Action&lt;string&gt;) would be used over this. 
+    /// Typically, an extension method like WithStdErrTarget(StringBuilder) or WithStdErrTarget(Action&lt;string&gt;) would be used over this.
     /// </summary>
     public ShellCommand WithStdErrTarget(IOutputTarget target)
     {
@@ -205,5 +205,34 @@ public class ShellCommand
         await process.WaitForExitAsync(cancellationToken);
 
         return new ShellCommandResult(process.SafelyGetExitCode());
+    }
+
+    public override string ToString()
+    {
+        return ToString(false);
+    }
+
+    public string ToString(bool includeArguments)
+    {
+        var arguments = "<arguments>";
+
+        if (argumentString is not null && argumentList is { Count: > 0 })
+        {
+            arguments = "<invalid arguments: both argumentString and argumentList have been supplied>";
+        }
+        else if (argumentString is not null)
+        {
+            arguments = includeArguments
+                ? argumentString
+                : "<arguments>";
+        }
+        else if (argumentList is { Count: > 0 })
+        {
+            arguments = includeArguments
+                ? PasteArguments.JoinArguments(argumentList)
+                : $"<{argumentList.Count} arguments>";
+        }
+
+        return $"{executable} {arguments}";
     }
 }
