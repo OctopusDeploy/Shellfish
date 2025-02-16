@@ -32,7 +32,9 @@ public class ShellCommandFixture
     readonly CancellationTokenSource cancellationTokenSource = new(TestTimeout);
     CancellationToken CancellationToken => cancellationTokenSource.Token;
 
-    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    [Theory]
+    [InlineData(SyncBehaviour.Sync)]
+    [InlineData(SyncBehaviour.Async)]
     public async Task ExitCode_ShouldBeReturned(SyncBehaviour behaviour)
     {
         var stdOut = new StringBuilder();
@@ -54,7 +56,9 @@ public class ShellCommandFixture
         stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
     }
 
-    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    [Theory]
+    [InlineData(SyncBehaviour.Sync)]
+    [InlineData(SyncBehaviour.Async)]
     public async Task RunningAsSameUser_ShouldCopySpecialEnvironmentVariables(SyncBehaviour behaviour)
     {
         var stdOut = new StringBuilder();
@@ -80,7 +84,9 @@ public class ShellCommandFixture
         stdOut.ToString().Should().ContainEquivalentOf("customvalue", "the environment variable should have been copied to the child process");
     }
 
-    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    [Theory]
+    [InlineData(SyncBehaviour.Sync)]
+    [InlineData(SyncBehaviour.Async)]
     public async Task CancellationToken_ShouldForceKillTheProcess(SyncBehaviour behaviour)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken);
@@ -94,17 +100,13 @@ public class ShellCommandFixture
         Process? process = null;
         executor = executor
             .CaptureProcess(p => process = p);
-            // Do not capture stdout or stderr; the windows timeout command will fail with ERROR: Input redirection is not supported
+        // Do not capture stdout or stderr; the windows timeout command will fail with ERROR: Input redirection is not supported
 
         var cancellationToken = cts.Token;
         if (behaviour == SyncBehaviour.Async)
-        {
             await executor.Invoking(e => e.ExecuteAsync(cancellationToken)).Should().ThrowAsync<OperationCanceledException>();
-        }
         else
-        {
             executor.Invoking(e => e.Execute(cancellationToken)).Should().Throw<OperationCanceledException>();
-        }
 
         // we can't observe any exit code because Execute() threw an exception
 
@@ -112,7 +114,9 @@ public class ShellCommandFixture
         EnsureProcessHasExited(process!);
     }
 
-    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    [Theory]
+    [InlineData(SyncBehaviour.Sync)]
+    [InlineData(SyncBehaviour.Async)]
     public async Task CancellationToken_ShouldForceKillTheProcess_DoNotThrowOnCancellation(SyncBehaviour behaviour)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken);
@@ -127,7 +131,7 @@ public class ShellCommandFixture
         executor = executor
             .WithOptions(ShellCommandOptions.DoNotThrowOnCancellation)
             .CaptureProcess(p => process = p);
-            // Do not capture stdout or stderr; the windows timeout command will fail with ERROR: Input redirection is not supported
+        // Do not capture stdout or stderr; the windows timeout command will fail with ERROR: Input redirection is not supported
 
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(cts.Token)
@@ -136,14 +140,10 @@ public class ShellCommandFixture
         var exitCode = result.ExitCode;
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
             // timeout.exe will return 1 when interrupted
             exitCode.Should().BeOneOf([-1, 1], "the process should have been terminated");
-        }
         else
-        {
             exitCode.Should().BeOneOf(SIG_KILL, SIG_TERM, 0, -1);
-        }
 
         process?.Should().NotBeNull();
         EnsureProcessHasExited(process!);
@@ -161,7 +161,9 @@ public class ShellCommandFixture
         }
     }
 
-    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    [Theory]
+    [InlineData(SyncBehaviour.Sync)]
+    [InlineData(SyncBehaviour.Async)]
     public async Task EchoHello_ShouldWriteToCapturedStdOutStringBuilder(SyncBehaviour behaviour)
     {
         var stdOut = new StringBuilder();
@@ -181,7 +183,9 @@ public class ShellCommandFixture
         stdOut.ToString().Should().ContainEquivalentOf("hello");
     }
 
-    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    [Theory]
+    [InlineData(SyncBehaviour.Sync)]
+    [InlineData(SyncBehaviour.Async)]
     public async Task EchoHello_ShouldWriteToCapturedStdOutCallback(SyncBehaviour behaviour)
     {
         var outMessages = new List<string>();
@@ -207,7 +211,9 @@ public class ShellCommandFixture
         outMessages.Should().ContainSingle(msg => msg.Contains("hello"));
     }
 
-    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    [Theory]
+    [InlineData(SyncBehaviour.Sync)]
+    [InlineData(SyncBehaviour.Async)]
     public async Task EchoError_ShouldWriteToCapturedStdErrCallback(SyncBehaviour behaviour)
     {
         var outMessages = new List<string>();
@@ -233,7 +239,9 @@ public class ShellCommandFixture
         errMessages.Should().ContainSingle(msg => msg.Contains("Something went wrong!"));
     }
 
-    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    [Theory]
+    [InlineData(SyncBehaviour.Sync)]
+    [InlineData(SyncBehaviour.Async)]
     public async Task MultipleCapturingCallbacks(SyncBehaviour behaviour)
     {
         var outStringBuilder = new StringBuilder();
@@ -263,7 +271,9 @@ public class ShellCommandFixture
         outStringBuilder2.ToString().Should().Be("hello" + Environment.NewLine + "goodbye" + Environment.NewLine);
     }
 
-    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    [Theory]
+    [InlineData(SyncBehaviour.Sync)]
+    [InlineData(SyncBehaviour.Async)]
     public async Task RunAsCurrentUser_ShouldWork(SyncBehaviour behaviour)
     {
         var arguments = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
@@ -287,7 +297,9 @@ public class ShellCommandFixture
         stdOut.ToString().Should().ContainEquivalentOf($@"{Environment.UserName}");
     }
 
-    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    [Theory]
+    [InlineData(SyncBehaviour.Sync)]
+    [InlineData(SyncBehaviour.Async)]
     public async Task ArgumentArrayHandlingShouldBeConsistentWithRawArgumsnts(SyncBehaviour behaviour)
     {
         var stdOut = new StringBuilder();
@@ -307,23 +319,25 @@ public class ShellCommandFixture
         stdOut.ToString().Should().ContainEquivalentOf("hello");
     }
 
-    [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    [Theory]
+    [InlineData(SyncBehaviour.Sync)]
+    [InlineData(SyncBehaviour.Async)]
     public async Task ArgumentArrayHandlingShouldBeCorrect(SyncBehaviour behaviour)
     {
         using var assertionScope = new AssertionScope();
         using var tempScript = TempScript.Create(
-            cmd: """
-                 @echo off
-                 setlocal enabledelayedexpansion
-                 for %%A in (%*) do (
-                     echo %%~A
-                 )
-                 """,
-            sh: """
-                for arg in "$@"; do
-                    echo "$arg"
-                done
-                """);
+            """
+            @echo off
+            setlocal enabledelayedexpansion
+            for %%A in (%*) do (
+                echo %%~A
+            )
+            """,
+            """
+            for arg in "$@"; do
+                echo "$arg"
+            done
+            """);
 
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
@@ -358,13 +372,11 @@ public class ShellCommandFixture
         stdOut.ToString()
             .Should()
             .Be(string.Join(Environment.NewLine,
-            [
                 "apple",
-                "banana split", // spaces should be preserved
+                "banana split",
                 expectedQuotedValue,
                 "cherry",
-                "" // it has a trailing newline at the end
-            ]));
+                ""));
     }
 
     [Fact]

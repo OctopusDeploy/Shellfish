@@ -19,6 +19,13 @@ namespace Tests;
 [SupportedOSPlatform("Windows")]
 public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixture<WindowsUserClassFixture>
 {
+    readonly TestUserPrincipal user = fx.User;
+
+    // If unspecified, ShellCommand will default to the current directory, which our temporary user may not have access to.
+    // Our tests that run as a different user need to set a different working directory or they may fail.
+    readonly string commonAppDataPath = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+
+    readonly CancellationTokenSource cancellationTokenSource = new(ShellCommandFixture.TestTimeout);
 #if NET5_0_OR_GREATER
     static ShellCommandFixtureWindows()
     {
@@ -27,14 +34,6 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
     }
 #endif
-
-    readonly TestUserPrincipal user = fx.User;
-    
-    // If unspecified, ShellCommand will default to the current directory, which our temporary user may not have access to.
-    // Our tests that run as a different user need to set a different working directory or they may fail.
-    readonly string commonAppDataPath = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-
-    readonly CancellationTokenSource cancellationTokenSource = new(ShellCommandFixture.TestTimeout);
     CancellationToken CancellationToken => cancellationTokenSource.Token;
 
     [WindowsTheory]
@@ -61,7 +60,9 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
         stdOut.ToString().Should().ContainEquivalentOf($@"{Environment.UserDomainName}\{Environment.UserName}");
     }
 
-    [WindowsTheory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    [WindowsTheory]
+    [InlineData(SyncBehaviour.Sync)]
+    [InlineData(SyncBehaviour.Async)]
     public async Task SettingOutputEncodingShouldAllowUsToReadWeirdText(SyncBehaviour behaviour)
     {
         var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".cmd");
@@ -142,7 +143,9 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
         stdOut.ToString().Should().ContainEquivalentOf($@"{user.DomainName}\{user.UserName}");
     }
 
-    [WindowsTheory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    [WindowsTheory]
+    [InlineData(SyncBehaviour.Sync)]
+    [InlineData(SyncBehaviour.Async)]
     public async Task RunningAsDifferentUser_ShouldCopySpecialEnvironmentVariables(SyncBehaviour behaviour)
     {
         var stdOut = new StringBuilder();
@@ -168,7 +171,9 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
         stdOut.ToString().Should().ContainEquivalentOf("customvalue", "the environment variable should have been copied to the child process");
     }
 
-    [WindowsTheory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    [WindowsTheory]
+    [InlineData(SyncBehaviour.Sync)]
+    [InlineData(SyncBehaviour.Async)]
     public async Task RunningAsDifferentUser_ShouldWorkLotsOfTimes(SyncBehaviour behaviour)
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(240));
@@ -202,7 +207,9 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
         }
     }
 
-    [WindowsTheory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
+    [WindowsTheory]
+    [InlineData(SyncBehaviour.Sync)]
+    [InlineData(SyncBehaviour.Async)]
     public async Task RunningAsDifferentUser_CanWriteToItsOwnTempPath(SyncBehaviour behaviour)
     {
         var stdOut = new StringBuilder();

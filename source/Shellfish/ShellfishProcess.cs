@@ -68,12 +68,8 @@ class ShellfishProcess : IDisposable
             // Accessing the ProcessStartInfo.EnvironmentVariables dictionary will preload the environment variables for the current process
             // Then we'll add/overwrite with the customEnvironmentVariables           
             if (environmentVariables is { Count: > 0 })
-            {
                 foreach (var kvp in environmentVariables)
-                {
                     process.StartInfo.EnvironmentVariables[kvp.Key] = kvp.Value;
-                }
-            }
         }
 
         ConfigureStdOut(stdOutTargets);
@@ -125,9 +121,7 @@ class ShellfishProcess : IDisposable
             await (exitedEvent?.WaitAsync(cancellationToken) ?? Task.CompletedTask);
 
             if (!cancellationToken.IsCancellationRequested)
-            {
                 await process.WaitForExitAsync(cancellationToken);
-            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -155,7 +149,7 @@ class ShellfishProcess : IDisposable
         }
     }
 
-     // Common code for Execute and ExecuteAsync to handle stdin and stdout streaming
+    // Common code for Execute and ExecuteAsync to handle stdin and stdout streaming
     void BeginIoStreams()
     {
         if (stdOutRedirected) process.BeginOutputReadLine();
@@ -173,14 +167,14 @@ class ShellfishProcess : IDisposable
                 break;
             case ShellCommandArguments.ArgumentListType { Values.Length: > 0 } l:
 #if NET5_0_OR_GREATER
-            // Prefer ArgumentList if we're on net5.0 or greater. Our polyfill should have the same behaviour, but
-            // If we stick with the CLR we will pick up optimizations and bugfixes going forward           
-            foreach (var arg in l.Values) process.StartInfo.ArgumentList.Add(arg);
+                // Prefer ArgumentList if we're on net5.0 or greater. Our polyfill should have the same behaviour, but
+                // If we stick with the CLR we will pick up optimizations and bugfixes going forward           
+                foreach (var arg in l.Values) process.StartInfo.ArgumentList.Add(arg);
 #else
                 process.StartInfo.Arguments = PasteArguments.JoinArguments(l.Values);
 #endif
                 break;
-            
+
             // Deliberately no default case here: ShellCommandArguments.NoArgumentsType and Empty list are no-ops
         }
     }
