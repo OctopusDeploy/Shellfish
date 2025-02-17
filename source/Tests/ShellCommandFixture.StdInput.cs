@@ -286,6 +286,7 @@ public class ShellCommandFixtureStdInput
         // Our process was waiting on stdin and exits itself with code 0 when we close stdin,
         // but we cannot 100% guarantee it shuts down in time before we proceed to killing it; we could observe -1 too.
         // Whenever I've run this locally on windows or linux I always observe 0.
+        // 143 is the exit code for SIGTERM on linux, which is what we use to kill the process.
         result.ExitCode.Should().BeOneOf([0, -1, 143], "The process should exit cleanly when stdin is closed, but we might kill depending on timing");
         stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
         stdOut.ToString().Should().BeOneOf([
