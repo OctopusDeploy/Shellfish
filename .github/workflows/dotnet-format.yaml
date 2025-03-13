@@ -29,7 +29,7 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Run dotnet format
-        run: dotnet format --verbosity normal
+        run: dotnet format --verbosity normal --severity info
         working-directory: ./source
 
       - name: Check for changes
