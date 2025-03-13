@@ -1,0 +1,69 @@
+name: "Dotnet Format"
+
+# Controls when the action will run.
+on:
+  schedule:
+    # Weekly At 19:00 on Monday. - 5am Australian/Brisbane time
+    - cron: '0 19 * * 1'
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    # Allows you to run this workflow manually from the Actions tab
+
+jobs:
+  build:
+    name: "Format code and Create Pull Request if any changes"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Read Required to check out code, Write to create Git Tags
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Run dotnet format
+        run: dotnet format --verbosity normal
+        working-directory: ./source
+
+      - name: Check for changes
+        id: detect_changes
+        run: |
+          set +e
+          git diff --quiet
+
+          if [ "$?" -eq 0 ]; then
+            echo "No changes detected."
+          else
+            echo "Changes detected."
+            echo "changes_detected=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Pull Request if Changes Detected
+        if: steps.detect_changes.outputs.changes_detected == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RENOVATE_GITHUB_TOKEN }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          git config user.email "bob@octopus.com"
+          git config user.name "GitHub Actions"
+
+          dateTimeStamp="$(date +'%Y%m%d%H%M%S')"
+          branchName="dotnet-format/$dateTimeStamp"
+
+          git checkout -b "$branchName"
+          git add -A ./source
+          git commit -m "Run dotnet format"
+          git push -f --set-upstream origin "$branchName"
+
+          # Always target PR's at the default branch
+          targetBranchName="${{ github.event.repository.default_branch }}"
+          gh pr create -t "$branchName" --head "$branchName" --base "$targetBranchName" --body "This PR was created automatically by the dotnet-format workflow."
+
