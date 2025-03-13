@@ -29,7 +29,7 @@ public class ShellCommandFixtureWindows(WindowsUserClassFixture fx) : IClassFixt
 #endif
 
     readonly TestUserPrincipal user = fx.User;
-    
+
     // If unspecified, ShellCommand will default to the current directory, which our temporary user may not have access to.
     // Our tests that run as a different user need to set a different working directory or they may fail.
     readonly string commonAppDataPath = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);

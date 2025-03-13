@@ -8,7 +8,7 @@ public enum ShellCommandOptions
     /// Default value, equivalent to not specifying any options.
     /// </summary>
     None = 0,
-    
+
     /// <summary>
     /// By default, if the CancellationToken is cancelled, the running process will be killed, and an OperationCanceledException
     /// will be thrown, like the vast majority of other .NET code.

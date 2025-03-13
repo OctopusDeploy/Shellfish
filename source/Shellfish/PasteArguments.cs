@@ -22,14 +22,14 @@ static class PasteArguments
     internal static string JoinArguments(IEnumerable<string> arguments)
     {
         var stringBuilder = new StringBuilder();
-        foreach(var argument in arguments)
+        foreach (var argument in arguments)
         {
             AppendArgument(stringBuilder, argument);
         }
 
         return stringBuilder.ToString();
     }
-    
+
     internal static void AppendArgument(StringBuilder stringBuilder, string argument)
     {
         if (stringBuilder.Length != 0)

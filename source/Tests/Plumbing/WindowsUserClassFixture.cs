@@ -4,7 +4,7 @@
 public class WindowsUserClassFixture
 {
     static readonly object Gate = new();
-    
+
     const string Username = "test-shellexecutor";
 
     internal TestUserPrincipal User { get; }

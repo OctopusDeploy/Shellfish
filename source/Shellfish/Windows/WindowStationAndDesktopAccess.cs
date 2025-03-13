@@ -17,7 +17,7 @@ namespace Octopus.Shellfish.Windows
             var hWindowStation = GetProcessWindowStation();
             const int windowStationAllAccess = 0x000f037f;
             GrantAccess(username, domainName, hWindowStation, windowStationAllAccess);
-            
+
             var hDesktop = GetThreadDesktop();
             const int desktopRightsAllAccess = 0x000f01ff;
             GrantAccess(username, domainName, hDesktop, desktopRightsAllAccess);

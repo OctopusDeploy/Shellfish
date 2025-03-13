@@ -155,7 +155,7 @@ class ShellfishProcess : IDisposable
         }
     }
 
-     // Common code for Execute and ExecuteAsync to handle stdin and stdout streaming
+    // Common code for Execute and ExecuteAsync to handle stdin and stdout streaming
     void BeginIoStreams()
     {
         if (stdOutRedirected) process.BeginOutputReadLine();
@@ -180,8 +180,8 @@ class ShellfishProcess : IDisposable
                 process.StartInfo.Arguments = PasteArguments.JoinArguments(l.Values);
 #endif
                 break;
-            
-            // Deliberately no default case here: ShellCommandArguments.NoArgumentsType and Empty list are no-ops
+
+                // Deliberately no default case here: ShellCommandArguments.NoArgumentsType and Empty list are no-ops
         }
     }
 

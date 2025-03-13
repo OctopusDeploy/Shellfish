@@ -70,16 +70,16 @@ class InputQueue : IInputSourceObserver
                 switch (notification.Type)
                 {
                     case NotificationType.Empty: //  wait for the next wakeup signal
-                    {
-                        TaskCompletionSource<bool> sig;
-                        lock (queue)
                         {
-                            sig = wakeupSignal;
-                        }
+                            TaskCompletionSource<bool> sig;
+                            lock (queue)
+                            {
+                                sig = wakeupSignal;
+                            }
 
-                        await sig.Task;
-                        continue; // go round again
-                    }
+                            await sig.Task;
+                            continue; // go round again
+                        }
 
                     case NotificationType.Next when notification.Line is not null: // onNext
                         await processStdInput.WriteLineAsync(notification.Line);
@@ -90,8 +90,8 @@ class InputQueue : IInputSourceObserver
                         processStdInput.Close();
                         return; // exit the entire message pump
 
-                    // Normally we would have a default: case which logged or threw an "Unhandled case" exception,
-                    // but we are a background task, there's nobody to observe such a thing.
+                        // Normally we would have a default: case which logged or threw an "Unhandled case" exception,
+                        // but we are a background task, there's nobody to observe such a thing.
                 }
             }
         }

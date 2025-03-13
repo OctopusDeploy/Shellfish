@@ -9,16 +9,16 @@ namespace Tests.Plumbing
     {
         public WindowsFactAttribute()
         {
-            if(!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) Skip = $"This test only runs on Windows";
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) Skip = $"This test only runs on Windows";
         }
     }
-    
+
     [AttributeUsage(AttributeTargets.Method)]
     public sealed class WindowsTheoryAttribute : TheoryAttribute
     {
         public WindowsTheoryAttribute()
         {
-            if(!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) Skip = $"This test only runs on Windows";
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) Skip = $"This test only runs on Windows";
         }
     }
 }

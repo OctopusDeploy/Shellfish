@@ -59,7 +59,7 @@ static class Interop
             [MarshalAs(UnmanagedType.U4)]
             int dwFlags,
             out CpInfoEx lpCPInfoEx);
-        
+
         const int MAX_DEFAULTCHAR = 2;
         const int MAX_LEADBYTES = 12;
         const int MAX_PATH = 260;
@@ -105,7 +105,7 @@ static class Interop
         // See https://msdn.microsoft.com/en-us/library/windows/desktop/bb762274(v=vs.85).aspx
         [DllImport(Libraries.Userenv, SetLastError = true)]
         internal static extern bool DestroyEnvironmentBlock(IntPtr lpEnvironment);
-        
+
         // See https://msdn.microsoft.com/en-us/library/windows/desktop/bb762281(v=vs.85).aspx
         [DllImport(Libraries.Userenv, SetLastError = true)]
         internal static extern bool LoadUserProfile(SafeAccessTokenHandle hToken, ref ProfileInfo lpProfileInfo);

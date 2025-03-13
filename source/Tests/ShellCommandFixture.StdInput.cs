@@ -14,7 +14,7 @@ public class ShellCommandFixtureStdInput
 {
     readonly CancellationTokenSource cancellationTokenSource = new(ShellCommandFixture.TestTimeout);
     CancellationToken CancellationToken => cancellationTokenSource.Token;
-    
+
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
     public async Task ShouldWork(SyncBehaviour behaviour)
     {
@@ -71,7 +71,7 @@ public class ShellCommandFixtureStdInput
 
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
-        
+
         // it's going to ask us for the names, we need to answer back or the process will stall forever; we can preload this
         var stdIn = new TestInputSource();
 
@@ -94,7 +94,7 @@ public class ShellCommandFixtureStdInput
         stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
         stdOut.ToString().Should().Be("Enter First Name:" + Environment.NewLine + "Enter Last Name:" + Environment.NewLine + "Hello 'Bob' 'Octopus'" + Environment.NewLine);
     }
-    
+
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
     public async Task ClosingStdInEarly(SyncBehaviour behaviour)
     {
@@ -117,7 +117,7 @@ public class ShellCommandFixtureStdInput
 
         var stdOut = new StringBuilder();
         var stdErr = new StringBuilder();
-        
+
         // it's going to ask us for the names, we need to answer back or the process will stall forever; we can preload this
         var stdIn = new TestInputSource();
 
@@ -141,7 +141,7 @@ public class ShellCommandFixtureStdInput
         // When we close stdin the waiting process receives an EOF; Our trivial shell script interprets this as an empty string
         stdOut.ToString().Should().Be("Enter First Name:" + Environment.NewLine + "Enter Last Name:" + Environment.NewLine + "Hello 'Bob' ''" + Environment.NewLine);
     }
-    
+
     [Theory, InlineData(SyncBehaviour.Sync), InlineData(SyncBehaviour.Async)]
     public async Task ShouldReleaseInputSourceWhenProgramExits(SyncBehaviour behaviour)
     {
@@ -171,14 +171,14 @@ public class ShellCommandFixtureStdInput
             .WithStdOutTarget(l =>
             {
                 stdIn.Subscriber.Should().NotBeNull("the shellcommand should still be subscribed to the input source while the process is running");
-                
+
                 // when we receive the first prompt, cancel and kill the process
                 if (l.Contains("Enter First Name:")) stdIn.OnNext("Bob");
             })
             .WithStdErrTarget(stdErr);
 
         stdIn.Subscriber.Should().BeNull("the shellcommand should not subscribe to the input source until the process starts");
-        
+
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(CancellationToken)
             : executor.Execute(CancellationToken);
@@ -186,7 +186,7 @@ public class ShellCommandFixtureStdInput
         result.ExitCode.Should().Be(0, "the process should have run to completion");
         stdErr.ToString().Should().BeEmpty("no messages should be written to stderr");
         stdOut.ToString().Should().Be("Enter First Name:" + Environment.NewLine + "Hello 'Bob'" + Environment.NewLine);
-        
+
         stdIn.Subscriber.Should().BeNull("the shellcommand should have unsubscribed from the input source after the process exits");
     }
 
@@ -294,7 +294,7 @@ public class ShellCommandFixtureStdInput
             "Enter Name:" + Environment.NewLine + "Hello ''" + Environment.NewLine,
         ], because: "When we cancel the process we close StdIn and it shuts down. The process observes the EOF as empty string and prints 'Hello ' but there is a benign race condition which means we may not observe this output. Test needs to handle both cases");
     }
-    
+
     // If someone wants to have an interactive back-and-forth with a process, they 
     // can use a type like this to do it. We don't want to quite commit to putting it
     // in the public API though until we have a stronger use-case for it.
@@ -314,7 +314,7 @@ public class ShellCommandFixtureStdInput
         {
             Subscriber?.OnNext(line);
         }
-        
+
         public void OnCompleted()
         {
             Subscriber?.OnCompleted();

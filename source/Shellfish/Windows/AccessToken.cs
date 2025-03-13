@@ -33,7 +33,7 @@ namespace Octopus.Shellfish.Windows
             Interop.Advapi32.LogonType logonType,
             Interop.Advapi32.LogonProvider logonProvider)
         {
-            if(!Interop.Advapi32.LogonUser(username, domain, password, logonType, logonProvider, out var handle))
+            if (!Interop.Advapi32.LogonUser(username, domain, password, logonType, logonProvider, out var handle))
                 throw new Win32Exception();
 
             return handle;

@@ -210,15 +210,15 @@ public class ShellCommand
         switch (arguments)
         {
             case ShellCommandArguments.StringType s:
-            {
-                var argumentsAsString = includeArguments ? s.Value : "<arguments>";
-                return $"{executable} {argumentsAsString}";
-            }
+                {
+                    var argumentsAsString = includeArguments ? s.Value : "<arguments>";
+                    return $"{executable} {argumentsAsString}";
+                }
             case ShellCommandArguments.ArgumentListType { Values.Length: > 0 } l:
-            {
-                var argumentsAsString = includeArguments ? PasteArguments.JoinArguments(l.Values) : $"<{l.Values.Length} arguments>";
-                return $"{executable} {argumentsAsString}";
-            }
+                {
+                    var argumentsAsString = includeArguments ? PasteArguments.JoinArguments(l.Values) : $"<{l.Values.Length} arguments>";
+                    return $"{executable} {argumentsAsString}";
+                }
 
             default:
                 return executable;

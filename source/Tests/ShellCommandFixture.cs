@@ -94,7 +94,7 @@ public class ShellCommandFixture
         Process? process = null;
         executor = executor
             .CaptureProcess(p => process = p);
-            // Do not capture stdout or stderr; the windows timeout command will fail with ERROR: Input redirection is not supported
+        // Do not capture stdout or stderr; the windows timeout command will fail with ERROR: Input redirection is not supported
 
         var cancellationToken = cts.Token;
         if (behaviour == SyncBehaviour.Async)
@@ -127,7 +127,7 @@ public class ShellCommandFixture
         executor = executor
             .WithOptions(ShellCommandOptions.DoNotThrowOnCancellation)
             .CaptureProcess(p => process = p);
-            // Do not capture stdout or stderr; the windows timeout command will fail with ERROR: Input redirection is not supported
+        // Do not capture stdout or stderr; the windows timeout command will fail with ERROR: Input redirection is not supported
 
         var result = behaviour == SyncBehaviour.Async
             ? await executor.ExecuteAsync(cts.Token)
@@ -340,7 +340,7 @@ public class ShellCommandFixture
         string[] runScriptArgs = tempScript.GetCommandArgs();
 
         var executor = new ShellCommand(tempScript.GetHostExecutable())
-            .WithArguments([..runScriptArgs, ..inputArgs])
+            .WithArguments([.. runScriptArgs, .. inputArgs])
             .WithStdOutTarget(stdOut)
             .WithStdErrTarget(stdErr);
 
