@@ -34,8 +34,10 @@ public class ShellCommand
         this.executable = executable;
     }
 
-    // internal only, so tests can assert if a process has exited or not.
-    internal ShellCommand CaptureProcess(Action<Process> onProcess)
+    /// <summary>
+    /// Allows you to access the underlying <see cref="Process"/> as soon as it is spawned for advanced use cases.
+    /// </summary>
+    public ShellCommand CaptureProcess(Action<Process> onProcess)
     {
         onCaptureProcess = onProcess;
         return this;

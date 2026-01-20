@@ -4,6 +4,7 @@ Octopus.Shellfish.ShellCommandExtensionMethods.WithStdErrTarget
 Octopus.Shellfish.ShellCommandExtensionMethods.WithStdOutTarget
 Octopus.Shellfish.ShellCommandExtensionMethods.WithStdErrTarget
 Octopus.Shellfish.IOutputTarget.WriteLine
+Octopus.Shellfish.ShellCommand.CaptureProcess
 Octopus.Shellfish.ShellCommand.WithWorkingDirectory
 Octopus.Shellfish.ShellCommand.WithArguments
 Octopus.Shellfish.ShellCommand.WithArguments
