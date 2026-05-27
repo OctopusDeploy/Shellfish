@@ -75,6 +75,51 @@ public class ShellCommandFixture_GrandchildPipes
             TryKillGrandchild(grandchildPidFile);
         }
     }
+    
+    [NixFact]
+    public void Execute_WhenUnixGrandchildHoldsRedirectedPipes_ShouldNotHangAfterCancellation_Async()
+    {
+        var grandchildPidFile = Path.Combine(Path.GetTempPath(), $"shellfish-grandchild-{Guid.NewGuid():N}.pid");
+
+        // sh -c "sleep 600 & echo $! > pidfile; exit 0"
+        // sh backgrounds sleep (which inherits sh's redirected stdout), writes the PID, exits.
+        // sleep is reparented to init/launchd and keeps the pipe open.
+        var script = $"sleep 600 & echo $! > '{grandchildPidFile}'; exit 0";
+
+        var stdOut = new StringBuilder();
+        var stdErr = new StringBuilder();
+
+        var executor = new ShellCommand("/bin/sh")
+            .WithArguments(new[] { "-c", script })
+            .WithStdOutTarget(stdOut)
+            .WithStdErrTarget(stdErr);
+
+        try
+        {
+            using var cts = new CancellationTokenSource();
+            var executeTask = Task.Run(() =>
+            {
+                try { var f = executor.ExecuteAsync(cts.Token); }
+                catch (OperationCanceledException) { /* expected */ }
+            });
+
+            WaitForGrandchildSpawn(grandchildPidFile, GrandchildSpawnTimeout);
+
+            var sw = Stopwatch.StartNew();
+            cts.Cancel();
+
+            var completed = executeTask.Wait(HangGuardTimeout);
+            sw.Stop();
+
+            completed.Should().BeTrue(
+                $"Execute() should return shortly after cancellation even when a Unix grandchild (reparented to init/launchd) " +
+                $"holds the redirected pipes. Elapsed since cancel: {sw.Elapsed.TotalSeconds:F1}s");
+        }
+        finally
+        {
+            TryKillGrandchild(grandchildPidFile);
+        }
+    }
 
     [WindowsFact]
     public void Execute_WhenWindowsGrandchildHoldsRedirectedPipes_ShouldNotHangAfterCancellation()
