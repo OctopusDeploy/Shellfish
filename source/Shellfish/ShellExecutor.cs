@@ -165,7 +165,7 @@ namespace Octopus.Shellfish
                         SafelyWaitForAllOutput(outputResetEvent, cancel, debug);
                         SafelyWaitForAllOutput(errorResetEvent, cancel, debug);
 
-                        var exitCode = SafelyGetExitCode(process);
+                        var exitCode = SafelyGetExitCode(process, debug);
                         debug($"Shellfish {exeFileNameOrFullPath} in {workingDirectory} exited with code {exitCode}");
 
                         running = false;
@@ -179,7 +179,7 @@ namespace Octopus.Shellfish
             }
         }
 
-        static int SafelyGetExitCode(Process process)
+        static int SafelyGetExitCode(Process process, Action<string> debug)
         {
             try
             {
@@ -188,6 +188,7 @@ namespace Octopus.Shellfish
             catch (InvalidOperationException ex)
                 when (ex.Message is "No process is associated with this object." || ex.Message is "Process was not started by this object, so requested information cannot be determined.")
             {
+                debug(ex.ToString());
                 return -1;
             }
         }
