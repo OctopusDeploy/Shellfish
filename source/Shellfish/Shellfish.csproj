@@ -10,7 +10,14 @@
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <LangVersion>12</LangVersion>
-    <TargetFrameworks>netstandard2.0;net8.0</TargetFrameworks>
+    <!--
+      net8.0 is shipped even though tests only run against net10.0 (and net472 on Windows).
+      Without it, net8 consumers would fall back to the netstandard2.0 build, which takes the
+      !NET5_0_OR_GREATER code paths: ExecuteAsync blocks synchronously on Process.WaitForExit,
+      and arguments go through the PasteArguments polyfill instead of ProcessStartInfo.ArgumentList.
+      net8.0 compiles the same #if branches as net10.0, so the net10.0 tests cover its behaviour.
+    -->
+    <TargetFrameworks>netstandard2.0;net8.0;net10.0</TargetFrameworks>
   </PropertyGroup>
 
   <ItemGroup>
